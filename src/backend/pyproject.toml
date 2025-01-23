@@ -1,0 +1,114 @@
+# -----------------------------------------------------------------------------
+# Project metadata and configuration for TaskStream AI Backend
+# -----------------------------------------------------------------------------
+[tool.poetry]
+# The name of the Python package, identifying this backend across environments
+name = "taskstream-ai-backend"
+
+# The current version of this backend service
+version = "1.0.0"
+
+# A brief description emphasizing the role of NLP and analytics services
+description = "TaskStream AI backend services including NLP engine and analytics"
+
+# The README file for additional project documentation
+readme = "README.md"
+
+# Official project author information (more can be added if needed)
+authors = ["TaskStream AI Team"]
+
+# License may be commercial or proprietary for enterprise-specific software
+license = "Proprietary"
+
+
+# -----------------------------------------------------------------------------
+# Dependencies required for the TaskStream AI backend in production
+# -----------------------------------------------------------------------------
+[tool.poetry.dependencies]
+# Python version for runtime compatibility; ensures 3.11 or higher minor releases
+python = "^3.11"
+
+# FastAPI (v0.104+) for high-performance web frameworks and API endpoints
+fastapi = "^0.104.0"
+
+# TensorFlow (v2.14.x) for advanced deep learning tasks in NLP/ML
+tensorflow = "~=2.14.0"
+
+# PyTorch (v2.1.x) for alternative deep learning frameworks and model support
+torch = "^2.1.0"
+
+# Transformers (v4.35.x) from Hugging Face for large-scale language model usage
+transformers = "^4.35.0"
+
+# spaCy (v3.7.x) for NLP pipelines, tokenization, lemmatization, etc.
+spacy = "^3.7.0"
+
+# PySpark (v3.5.x) for distributed data processing and analytics engine
+pyspark = "^3.5.0"
+
+# scikit-learn (v1.3.x) for additional machine learning algorithms and tools
+scikit-learn = "^1.3.0"
+
+# pandas (v2.1.x) for data manipulation, ETL workflows, and dataset handling
+pandas = "^2.1.0"
+
+# numpy (v1.24.x) as a fundamental array library for numerical operations
+numpy = "^1.24.0"
+
+# Uvicorn (v0.24.x) ASGI server to run FastAPI in production or development
+uvicorn = "^0.24.0"
+
+# python-jose (v3.3.x + cryptography) for JWT generation, validation, and claims
+python-jose[cryptography] = "^3.3.0"
+
+# passlib (v1.7.x + bcrypt) for secure password hashing and authentication flows
+passlib[bcrypt] = "^1.7.4"
+
+# SQLAlchemy (v2.0.x + asyncio) for async ORM capabilities with relational DBs
+sqlalchemy[asyncio] = "^2.0.0"
+
+# psycopg2-binary (v2.9.x) PostgreSQL driver for database connectivity
+psycopg2-binary = "^2.9.0"
+
+# redis (v5.0.x + hiredis) for caching, message Pub/Sub, and real-time operations
+redis[hiredis] = "^5.0.0"
+
+# Elasticsearch client (v8.10.x) for search and analytics indexing
+elasticsearch = "^8.10.0"
+
+
+# -----------------------------------------------------------------------------
+# Development dependencies (tests, linting, formatting, and type checks)
+# -----------------------------------------------------------------------------
+[tool.poetry.dev-dependencies]
+# pytest (v7.4.x) for structured testing of backend modules
+pytest = "^7.4.0"
+
+# pytest-cov (v4.1.x) for code coverage metrics
+pytest-cov = "^4.1.0"
+
+# pytest-asyncio (v0.21.x) for asynchronous tests with FastAPI and async services
+pytest-asyncio = "^0.21.0"
+
+# black (v23.10.x) for code formatting to ensure consistent style
+black = "^23.10.0"
+
+# flake8 (v6.1.x) for enforcing Python code style and detecting code issues
+flake8 = "^6.1.0"
+
+# mypy (v1.6.x) for static type checks, boosting code reliability
+mypy = "^1.6.0"
+
+# isort (v5.12.x) for automatically sorting Python imports
+isort = "^5.12.0"
+
+
+# -----------------------------------------------------------------------------
+# Build system configuration using poetry-core
+# -----------------------------------------------------------------------------
+[build-system]
+# poetry-core provides essential functionality for packaging Python projects
+requires = ["poetry-core>=1.7.0"]
+
+# Defines the build backend, coordinating the packaging process
+build-backend = "poetry.core.masonry.api"
