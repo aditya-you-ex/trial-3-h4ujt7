@@ -1,0 +1,57 @@
+# -----------------------------------------------------------------------------------
+# Kubernetes Service Definition for the Integration Service
+# This file is part of TaskStream AI's Integration Framework, enabling connections
+# to external enterprise tools (e.g., email, Slack, Jira).
+#
+# External Import Reference:
+#   - k8s.io/api (v1.27+) // Kubernetes API resources for service definition
+#
+# Requirements Addressed:
+# 1) Integration Framework: Connects with existing enterprise tools to automate
+#    and streamline external communication channels.
+# 2) System Reliability: Contributes to the 99.9% uptime objective by exposing
+#    a stable, discoverable network endpoint within the Kubernetes cluster.
+# 3) Container Orchestration: Aligned with multi-region AWS EKS deployment,
+#    providing efficient service routing and load balancing for the Integration
+#    Service in an enterprise context.
+#
+# Global Configuration:
+# - SERVICE_PORT = 8080
+# - SERVICE_TARGET_PORT = 8080
+#
+# Export: Service
+#   - metadata (object) - Detailed metadata configuration for the service
+#   - spec (object)     - Detailed specification of how the service is exposed
+#
+# This definition follows best practices for multi-tenant or enterprise deployments
+# using a ClusterIP service type within Kubernetes. Prometheus annotations are
+# included to facilitate health checks and observability. The integration service
+# can be scaled horizontally while preserving internal cluster stability, thereby
+# supporting high availability across multiple regions.
+# -----------------------------------------------------------------------------------
+
+apiVersion: v1
+kind: Service
+
+metadata:  # Exported: metadata
+  name: integration-service
+  namespace: taskstream
+  labels:
+    app: integration-service
+    component: backend
+    part-of: taskstream
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+
+spec:  # Exported: spec
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080        # Matches SERVICE_PORT global
+      targetPort: 8080  # Matches SERVICE_TARGET_PORT global
+      protocol: TCP
+  selector:
+    app: integration-service
+  sessionAffinity: None
