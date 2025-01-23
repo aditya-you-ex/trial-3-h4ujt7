@@ -1,0 +1,227 @@
+/* 
+===============================================================================
+ TaskStream AI - Global CSS
+===============================================================================
+ Provides normalized styles, design system variables, typography, 
+ accessibility improvements, responsive breakpoints, and other global rules, 
+ ensuring consistent and universal styling across the application.
+*/
+
+/* 
+===============================================================================
+ EXTERNAL DEPENDENCIES
+ - Using modern-normalize@^2.0.0 to normalize browser defaults consistently
+===============================================================================
+*/
+@import url('https://cdn.jsdelivr.net/npm/modern-normalize@2.0.0/modern-normalize.min.css');
+
+/* 
+===============================================================================
+ INTERNAL IMPORTS 
+ - Local design system variables (CSS Custom Properties) from variables.css
+ - Local font-face declarations (Inter, SF Pro) from fonts.css
+===============================================================================
+*/
+@import './variables.css';
+@import './fonts.css';
+
+/* 
+===============================================================================
+ Named Export: base-styles
+ - Sets border-box sizing globally
+ - Resets margins and paddings to zero
+===============================================================================
+*/
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* 
+===============================================================================
+ Named Export: typography 
+ - Ensures default html config:
+   * 16px base for consistent scaling
+   * Smooth scrolling
+   * Antialiasing for better legibility
+===============================================================================
+*/
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+/* 
+===============================================================================
+ Body Styling
+ - Defaults to primary font
+ - Sets text color, background, and consistent line height
+ - Disables tap highlight in mobile
+===============================================================================
+*/
+body {
+  font-family: var(--font-family-primary, 'Inter');
+  font-size: var(--font-size-md, 1rem);
+  line-height: 1.5;
+  color: var(--color-text, #1F2937);
+  background-color: var(--color-background, #FFFFFF);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 
+===============================================================================
+ Heading Elements
+ - Secondary font (or bold) for distinction
+ - Adjusts margin and color for emphasis 
+===============================================================================
+*/
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-secondary, 'SF Pro');
+  font-weight: var(--font-weight-bold, 700);
+  line-height: 1.2;
+  margin-bottom: var(--spacing-md, 1rem);
+  color: var(--color-heading, #111827);
+}
+
+/* 
+===============================================================================
+ Anchor Elements
+ - Primary color for links
+ - Hover & focus states for accessibility
+===============================================================================
+*/
+a {
+  color: var(--color-primary, #2563EB);
+  text-decoration: none;
+  transition: var(--transition-fast, 150ms ease-in-out);
+}
+
+a:hover {
+  color: var(--color-primary-dark, #1D4ED8);
+  text-decoration: underline;
+}
+
+a:focus {
+  outline: 2px solid var(--color-primary, #2563EB);
+  outline-offset: 2px;
+  border-radius: var(--border-radius-sm, 0.25rem);
+}
+
+/* 
+===============================================================================
+ Media Elements
+ - Responsive images, videos, and SVGs
+===============================================================================
+*/
+img, svg, video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+/* 
+===============================================================================
+ Form Elements
+ - Inherit typography from the body
+===============================================================================
+*/
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+/* 
+===============================================================================
+ Named Export: accessibility
+ - :focus-visible outline for users relying on keyboard navigation
+===============================================================================
+*/
+:focus-visible {
+  outline: 2px solid var(--color-primary, #2563EB);
+  outline-offset: 2px;
+  border-radius: var(--border-radius-sm, 0.25rem);
+}
+
+/* 
+===============================================================================
+ Text Selection
+ - Highlights selection with the primary brand color 
+===============================================================================
+*/
+::selection {
+  background-color: var(--color-primary, #2563EB);
+  color: #FFFFFF;
+}
+
+/* 
+===============================================================================
+ Screen Reader Utility
+ - Hides elements visually but keeps them accessible for screen readers
+===============================================================================
+*/
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 
+===============================================================================
+ Skip Link
+ - Allows keyboard users to jump directly to main content
+===============================================================================
+*/
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-primary, #2563EB);
+  color: #FFFFFF;
+  padding: 8px;
+  z-index: 100;
+  transition: top 0.2s;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* 
+===============================================================================
+ Named Export: print
+ - Print-specific optimizations
+===============================================================================
+*/
+@media print {
+  body {
+    color: #000000;
+  }
+
+  a {
+    text-decoration: underline;
+  }
+
+  a[href]::after {
+    content: " (" attr(href) ")";
+  }
+
+  @page {
+    margin: 2cm;
+  }
+}
