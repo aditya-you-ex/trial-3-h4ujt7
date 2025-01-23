@@ -1,0 +1,230 @@
+###################################################################################################
+# ELASTICSEARCH DEPLOYMENT FOR TASKSTREAM AI
+# -----------------------------------------------------------------------------------------------
+# This file defines a Kubernetes ConfigMap, Service, and StatefulSet for deploying an enterprise-
+# grade Elasticsearch (v8.10.0) cluster with high availability, data persistence, security, and
+# monitoring integration in the "monitoring" namespace. It references the "monitoring-namespace"
+# defined in namespaces.yaml and aligns with the "monitoring-quota" from resource-quotas.yaml.
+#
+# External Import:
+#   - kubernetes (v1.27+)    # For ConfigMap, Service, and StatefulSet resources
+#
+# Globals (from JSON specification):
+#   - ES_VERSION    : 8.10.0
+#   - ES_REPLICAS   : 3
+#   - ES_HEAP_SIZE  : 4g
+#
+# Technical Specification References:
+#   - Search and Analytics (Elasticsearch 8.0+)
+#   - High availability (3 replicas) with RollingUpdate strategy
+#   - Secure, monitored environment (xpack.security.enabled, Prometheus annotations)
+#   - Persistent volumes using a StatefulSet with volumeClaimTemplates
+#   - Resource constraints requiring alignment with ResourceQuota in "monitoring" namespace
+#
+# The file contains three resources in separate YAML documents:
+#   1) ConfigMap             => Holds the elasticsearch.yml configuration
+#   2) Service (Headless)    => Enables dynamic pod DNS for Elasticsearch discovery
+#   3) StatefulSet           => Manages Elasticsearch Pods with persistent data, readiness/liveness
+###################################################################################################
+
+
+################################################################################
+# 1) CONFIGMAP: elasticsearch-config
+# ------------------------------------------------------------------------------
+# Creates a ConfigMap named "elasticsearch-config" in the "monitoring" namespace,
+# containing the essential Elasticsearch configuration. This is mounted into the
+# Elasticsearch containers at "/usr/share/elasticsearch/config/elasticsearch.yml".
+################################################################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: monitoring
+  labels:
+    app: elasticsearch
+    component: storage
+    version: "8.10.0"
+data:
+  # Elasticsearch YAML configuration for cluster settings, network bindings,
+  # and basic security parameters. Some settings may be overridden by environment
+  # variables in the container spec.
+  elasticsearch.yml: |
+    cluster.name: "taskstream-es-cluster"
+    network.host: 0.0.0.0
+    xpack.security.enabled: true
+    bootstrap.memory_lock: true
+    # Additional configuration can be inserted here as needed for plugins or advanced settings.
+    # The environment variables in the StatefulSet container (e.g., discovery.type) will augment these defaults.
+
+
+################################################################################
+# 2) SERVICE: elasticsearch
+# ------------------------------------------------------------------------------
+# A headless Service named "elasticsearch" in the "monitoring" namespace. This
+# service is used by the StatefulSet for network identity and discovery. "clusterIP"
+# is set to None, ensuring each Pod has its own DNS record for cluster formation.
+################################################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: monitoring
+  labels:
+    app: elasticsearch
+    component: storage
+    version: "8.10.0"
+spec:
+  # Headless service configuration for Pod-to-Pod communication.
+  clusterIP: None
+  selector:
+    app: elasticsearch
+  ports:
+    - name: http
+      port: 9200
+      targetPort: 9200
+    - name: transport
+      port: 9300
+      targetPort: 9300
+
+
+################################################################################
+# 3) STATEFULSET: elasticsearch
+# ------------------------------------------------------------------------------
+# Manages the Elasticsearch cluster Pods with 3 replicas, providing:
+#   - Persistent data via volumeClaimTemplates using gp3 storage (100Gi)
+#   - Rolling updates to avoid downtime
+#   - Security context for non-root operation and memory lock
+#   - Resource requests/limits consistent with the technical specification
+#   - Prometheus scraping annotations
+#   - Readiness/liveness probes for cluster health
+################################################################################
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: monitoring
+  labels:
+    app: elasticsearch
+    component: storage
+    version: "8.10.0"
+  annotations:
+    prometheus.io/scrape: "true"            # Enable Prometheus scraping
+    prometheus.io/port: "9200"             # Scrape on Elasticsearch's HTTP port
+    prometheus.io/path: "/_prometheus/metrics"
+spec:
+  replicas: 3                               # ES_REPLICAS => 3
+  serviceName: elasticsearch               # Must match the Service name
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady        # Ensures pods start in sequence
+  selector:
+    matchLabels:
+      app: elasticsearch
+
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      # Configure security context to ensure non-root operation
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsNonRoot: true
+
+      # Init container to fix permissions on persistent data volume
+      initContainers:
+        - name: fix-permissions
+          image: busybox
+          command: ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
+          securityContext:
+            runAsUser: 0                  # Root needed to change ownership
+          volumeMounts:
+            - name: elasticsearch-data
+              mountPath: /usr/share/elasticsearch/data
+
+      containers:
+        - name: elasticsearch
+          image: "docker.elastic.co/elasticsearch/elasticsearch:8.10.0"     # ES_VERSION => 8.10.0
+          resources:
+            requests:
+              cpu: "2"
+              memory: "8Gi"
+            limits:
+              cpu: "4"
+              memory: "16Gi"
+          env:
+            - name: ES_JAVA_OPTS
+              value: "-Xms4g -Xmx4g"       # ES_HEAP_SIZE => 4g
+            - name: discovery.type
+              value: "kubernetes"
+            - name: cluster.name
+              value: "taskstream-es-cluster"
+            - name: network.host
+              value: "0.0.0.0"
+            - name: bootstrap.memory_lock
+              value: "true"
+            - name: xpack.security.enabled
+              value: "true"
+
+          # Expose the two main Elasticsearch ports
+          ports:
+            - containerPort: 9200
+              name: http
+            - containerPort: 9300
+              name: transport
+
+          # Mounts the persistent data volume, and the configuration from ConfigMap
+          volumeMounts:
+            - name: elasticsearch-data
+              mountPath: /usr/share/elasticsearch/data
+            - name: elasticsearch-config
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+              subPath: elasticsearch.yml
+
+          # Readiness probe checks if the node is part of a healthy cluster
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+          # Liveness probe checks if the cluster is still responsive
+          livenessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 60
+            periodSeconds: 20
+
+      # Volumes referencing the above ConfigMap for elasticsearch.yml
+      volumes:
+        - name: elasticsearch-config
+          configMap:
+            name: elasticsearch-config
+
+      # Enforces pod anti-affinity so replicas do not reside on the same node
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - elasticsearch
+              topologyKey: kubernetes.io/hostname
+
+  # Create a persistent volume for each replica automatically
+  volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+        annotations:
+          backup.velero.io/backup-volumes: "elasticsearch-data"
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: gp3
+        resources:
+          requests:
+            storage: 100Gi
