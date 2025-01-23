@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: ConfigMap
+
+# -------------------------------------------------------------------------------
+# This ConfigMap provides Prometheus server configuration for TaskStream AI,
+# focusing on system monitoring, SLO enforcement (99.9% uptime), and broad
+# infrastructure observability.
+#
+# External Import:
+#   - Using Prometheus (prom/prometheus:v2.45.0) for metric collection, rule
+#     evaluation, and alerting capabilities.
+#
+# Internal Import:
+#   - References prometheus-metrics (named port) from "prometheus-service"
+#     in "service.yaml" for the local endpoint where metrics can be scraped.
+#
+# Exports (Named):
+#   - prometheus.yml       (Prometheus configuration)
+#   - recording.rules      (Recording rules for SLOs and performance metrics)
+#   - alerting.rules       (Alerting rules for system reliability and stability)
+# -------------------------------------------------------------------------------
+metadata:
+  # -----------------------------------------------------------------------------
+  # "name" identifies this ConfigMap as "prometheus-config" within the
+  # "monitoring" namespace.
+  # -----------------------------------------------------------------------------
+  name: prometheus-config
+  namespace: monitoring
+
+  # -----------------------------------------------------------------------------
+  # "labels" help categorize and select this ConfigMap. The "app" and "component"
+  # labels align with TaskStream AI's monitoring components.
+  # -----------------------------------------------------------------------------
+  labels:
+    app: prometheus
+    component: monitoring
+
+# -----------------------------------------------------------------------------
+# "data" holds actual Prometheus configuration files, including:
+# 1) prometheus.yml      => Main Prometheus server config (scrape settings).
+# 2) recording.rules     => Aggregation rules for custom metrics & SLO analysis.
+# 3) alerting.rules      => Alert rules ensuring critical notifications.
+# -----------------------------------------------------------------------------
+data:
+  # ---------------------------------------------------------------------------
+  # The main Prometheus configuration file, which defines scraping intervals,
+  # timeouts, and the set of Kubernetes-based discovery rules. The included
+  # relabel_configs ensure only annotated pods/services are scraped.
+  # ---------------------------------------------------------------------------
+  prometheus.yml: |-
+    global:
+      # Global scrape interval defines the default frequency for metrics scraping.
+      scrape_interval: 15s
+      # Evaluation interval sets how frequently recording and alerting rules are run.
+      evaluation_interval: 15s
+      # Scrape timeout is the time limit before a scrape request is considered failed.
+      scrape_timeout: 10s
+
+    scrape_configs:
+      # -----------------------------------------------------------------------
+      # "kubernetes-pods" job uses role=pod for discovering pods in the cluster.
+      # Relabeling ensures only pods annotated with `prometheus.io/scrape: "true"`
+      # are scraped, preserving compute resources and focusing on relevant metrics.
+      # -----------------------------------------------------------------------
+      - job_name: "kubernetes-pods"
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: ["__meta_kubernetes_pod_annotation_prometheus_io_scrape"]
+            action: keep
+            regex: "true"
+
+      # -----------------------------------------------------------------------
+      # "kubernetes-services" job uses role=service for discovering services
+      # in the cluster. Services annotated with `prometheus.io/scrape: "true"`
+      # are targeted. This includes the "prometheus-service" itself for self-scraping.
+      # -----------------------------------------------------------------------
+      - job_name: "kubernetes-services"
+        kubernetes_sd_configs:
+          - role: service
+        relabel_configs:
+          - source_labels: ["__meta_kubernetes_service_annotation_prometheus_io_scrape"]
+            action: keep
+            regex: "true"
+
+  # ---------------------------------------------------------------------------
+  # "recording.rules" define custom metrics by aggregating or transforming raw
+  # metrics into more concise, relevant information (e.g., SLO-based metrics).
+  # ---------------------------------------------------------------------------
+  recording.rules: |-
+    groups:
+      - name: taskstream_slos
+        rules:
+          # -------------------------------------------------
+          # This ratio measures API availability, comparing
+          # successful (2xx/3xx) request rates vs total requests.
+          # -------------------------------------------------
+          - record: "api_availability:requests:ratio"
+            expr: sum(rate(http_requests_total{code=~"2..|3.."}[5m])) / sum(rate(http_requests_total[5m]))
+
+          # -------------------------------------------------
+          # 95th percentile latency metric offers insight into
+          # typical upper-bound latency behavior for HTTP requests.
+          # -------------------------------------------------
+          - record: "api_latency:requests:p95"
+            expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+
+  # ---------------------------------------------------------------------------
+  # "alerting.rules" define conditions under which alerts are triggered.
+  # Examples include elevated error rates, service downtime, etc. These rules
+  # assist in meeting the 99.9% uptime SLO and proactively notifying on issues.
+  # ---------------------------------------------------------------------------
+  alerting.rules: |-
+    groups:
+      - name: taskstream_alerts
+        rules:
+          # -------------------------------------------------
+          # Alert on a high error rate (over 5% in the last
+          # 5 minutes). Labeled critical to escalate quickly
+          # if error rates remain high.
+          # -------------------------------------------------
+          - alert: "HighErrorRate"
+            expr: sum(rate(http_requests_total{code=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.05
+            for: 5m
+            labels:
+              severity: "critical"
+            annotations:
+              summary: "High error rate detected"
+              description: "Error rate is above 5% for 5 minutes"
+
+          # -------------------------------------------------
+          # Detect if any service instance scraped by Prometheus
+          # reports "up == 0" for 5 consecutive minutes, indicating
+          # downtime, scaling issues, or broken endpoints.
+          # -------------------------------------------------
+          - alert: "ServiceDown"
+            expr: up == 0
+            for: 5m
+            labels:
+              severity: "critical"
+            annotations:
+              summary: "Service is down"
+              description: "Service has been down for 5 minutes"
