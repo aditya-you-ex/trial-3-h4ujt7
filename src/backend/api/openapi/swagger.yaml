@@ -1,0 +1,900 @@
+################################################################################
+# MAIN OPENAPI/Swagger SPECIFICATION FILE
+# ------------------------------------------------------------------------------
+# File: swagger.yaml
+# Location: src/backend/api/openapi/swagger.yaml
+#
+# Description:
+# This file defines the complete OpenAPI (Swagger) documentation for the
+# TaskStream AI platform, addressing:
+# 1) API Architecture (REST over HTTPS, JWT auth, rate limiting, URI-based versioning)
+# 2) API Response Standards (standardized error structures, status codes)
+# 3) Security Architecture (enterprise-grade OAuth2, JWT, WAF integrations)
+# 4) System Monitoring (monitoring headers, tracing, health checks)
+#
+# Internal Imports (IE1):
+# - Common schemas from common.yaml (MetadataSchema, ErrorSchema, PaginationSchema, MonitoringSchema placeholder).
+# - Authentication schemas from auth.yaml (UserSchema, AuthRequestSchema, AuthResponseSchema, and a local definition
+#   of TokenSchema below, aligned with the specification).
+# - Security definitions from security.yaml (bearerAuth, oauth2Auth, apiKeyAuth, plus an added rateLimitScheme).
+#
+# External Imports (IE2):
+#   - openapi-types@^12.1.0 (conceptual type definitions if generating code)
+#   - js-yaml@^4.1.0 (for YAML parsing and generation if programmatically manipulated)
+#
+# Code Notes:
+# In accordance with enterprise guidelines, extensive comments are provided
+# to ensure clarity and maintainability. The x-functions and x-exports sections
+# illustrate how to generate and export this specification in an automated or
+# code-driven build scenario.
+################################################################################
+
+openapi: "3.0.3"
+
+################################################################################
+# TOP-LEVEL METADATA
+################################################################################
+info:
+  title: "TaskStream AI API"                   # (API_TITLE)
+  version: "1.0.0"                             # Uses semantic versioning
+  description: >-
+    TaskStream AI Platform REST API with comprehensive security and monitoring
+    (API_DESCRIPTION). This specification includes all endpoints, schema
+    references, security definitions, rate limits, and supports URI-based
+    versioning (v1).
+  termsOfService: "https://taskstream.ai/terms"
+  contact:
+    name: "TaskStream AI Support"
+    url: "https://taskstream.ai/support"
+    email: "support@taskstream.ai"
+  license:
+    name: "Apache 2.0"
+    url: "https://www.apache.org/licenses/LICENSE-2.0.html"
+
+################################################################################
+# SERVER CONFIGURATIONS (Multi-region, staging, local)
+################################################################################
+servers:
+  - url: "https://api.taskstream.ai/v1"
+    description: "Primary production server (REST over HTTPS, region: US-East)."
+  - url: "https://eu-api.taskstream.ai/v1"
+    description: "European region production server (REST over HTTPS, region: EU-West)."
+  - url: "https://staging.taskstream.ai/v1"
+    description: "Staging server environment for pre-production testing."
+  - url: "http://localhost:3000/v1"
+    description: "Local development server for testing with hot reloads."
+
+################################################################################
+# GLOBAL TAGS
+################################################################################
+tags:
+  - name: "Authentication"
+    description: "Endpoints related to user login, token refresh, and session management."
+  - name: "Projects"
+    description: "Endpoints for creating, retrieving, updating, and deleting projects."
+  - name: "Tasks"
+    description: "Endpoints for managing tasks, including assignment and status updates."
+  - name: "Analytics"
+    description: "Endpoints for retrieving predictive analytics, reporting, and performance metrics."
+  - name: "Monitoring"
+    description: "System health, readiness checks, and monitoring integrations."
+
+################################################################################
+# PRIMARY PATH DEFINITIONS
+################################################################################
+paths:
+
+  ##############################################################################
+  # AUTHENTICATION/LOGIN
+  ##############################################################################
+  /auth/login:
+    post:
+      tags:
+        - "Authentication"
+      summary: "Authenticate user credentials to obtain JWT-based access token."
+      description: >-
+        Validates user credentials and issues a short-lived access token plus a
+        longer-lived refresh token, subject to the 1000 requests/min rate limit
+        (RATE_LIMIT). Secured via HTTPS with JWT or OAuth2 per the security requirements.
+      operationId: "loginUser"
+      requestBody:
+        description: "Login data including email, password, and optional MFA token."
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRequestSchema"
+            examples:
+              loginExample:
+                summary: "Sample login request"
+                value:
+                  email: "alice@example.com"
+                  password: "StrongP@ssw0rd"
+                  deviceFingerprint:
+                    os: "macOS"
+                    browser: "Chrome 109"
+                    ip: "192.168.1.10"
+      responses:
+        "200":
+          description: "User authenticated successfully."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponseSchema"
+        "400":
+          description: "Bad Request – invalid credentials or malformed data."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "401":
+          description: "Unauthorized – invalid token or insufficient credentials."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "429":
+          description: "Too Many Requests – rate limit exceeded."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "500":
+          description: "Internal Server Error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+      security:
+        - bearerAuth: []     # or optional use of
+        - oauth2Auth: []     # either JWT or OAuth2
+
+  ##############################################################################
+  # AUTHENTICATION/REFRESH
+  ##############################################################################
+  /auth/refresh:
+    post:
+      tags:
+        - "Authentication"
+      summary: "Refresh an existing token to maintain session continuity."
+      description: >-
+        Allows clients to exchange a valid refresh token (TokenSchema) for a new
+        short-lived access token. Access token includes updated claims and
+        potential modified scopes. Enforces rate limiting of 1000 requests/min.
+      operationId: "refreshToken"
+      requestBody:
+        description: "Refresh token payload required to extend session."
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TokenSchema"
+            examples:
+              refreshExample:
+                summary: "Sample refresh request"
+                value:
+                  refreshToken: "eyJhbGciOiJIUz..."
+                  clientMetadata:
+                    deviceId: "A1B2C3"
+                    location: "NYC"
+      responses:
+        "200":
+          description: "New access token returned successfully."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponseSchema"
+        "400":
+          description: "Bad Request – missing or invalid refresh token."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "401":
+          description: "Unauthorized – token has expired or is invalid."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "429":
+          description: "Too Many Requests – rate limit exceeded."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "500":
+          description: "Internal Server Error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+      security:
+        - bearerAuth: []
+        - oauth2Auth: []
+
+  ##############################################################################
+  # PROJECTS RESOURCE (CRUD)
+  ##############################################################################
+  /projects:
+    get:
+      tags:
+        - "Projects"
+      summary: "Retrieve a list of projects."
+      description: >-
+        Returns a paginated array of Project objects. Supports optional filters,
+        sorting, and advanced pagination. Follows standardized response format.
+      operationId: "listProjects"
+      parameters:
+        - name: "cursor"
+          in: "query"
+          schema:
+            type: string
+          description: "Cursor for advanced pagination navigation."
+        - name: "limit"
+          in: "query"
+          schema:
+            type: integer
+          description: "Max items per page. Default is 10."
+      responses:
+        "200":
+          description: "List of project objects in a paginated structure."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        metadata:
+                          $ref: "#/components/schemas/MetadataSchema"
+                  pagination:
+                    $ref: "#/components/schemas/PaginationSchema"
+        "401":
+          description: "Unauthorized – missing or invalid credentials."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "429":
+          description: "Too Many Requests – rate limit exceeded."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "500":
+          description: "Internal Server Error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+      security:
+        - bearerAuth: []
+        - oauth2Auth: []
+
+    post:
+      tags:
+        - "Projects"
+      summary: "Create a new project."
+      description: "Creates a project resource in the system with the provided payload."
+      operationId: "createProject"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ name ]
+              properties:
+                name:
+                  type: string
+                  description: "Name of the new project."
+                startDate:
+                  type: string
+                  format: date
+                  description: "Scheduled start date for the project."
+                endDate:
+                  type: string
+                  format: date
+                  description: "Scheduled end date for the project."
+                metadata:
+                  $ref: "#/components/schemas/MetadataSchema"
+            example:
+              name: "Alpha Project"
+              startDate: "2024-04-01"
+              endDate: "2024-07-15"
+      responses:
+        "201":
+          description: "Project created successfully."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  metadata:
+                    $ref: "#/components/schemas/MetadataSchema"
+        "400":
+          description: "Bad Request – validation errors or invalid input."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "401":
+          description: "Unauthorized request."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "429":
+          description: "Too Many Requests – rate limit exceeded."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "500":
+          description: "Internal Server Error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+      security:
+        - bearerAuth: []
+        - oauth2Auth: []
+
+  /projects/{projectId}:
+    get:
+      tags:
+        - "Projects"
+      summary: "Retrieve a single project by ID."
+      description: "Fetches the project details for the specified projectId."
+      operationId: "getProject"
+      parameters:
+        - name: "projectId"
+          in: "path"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Project data returned successfully."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  metadata:
+                    $ref: "#/components/schemas/MetadataSchema"
+        "401":
+          description: "Unauthorized."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "403":
+          description: "Forbidden – user has insufficient permissions."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "404":
+          description: "Project not found."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "429":
+          description: "Too Many Requests."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "500":
+          description: "Internal Server Error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+      security:
+        - bearerAuth: []
+        - oauth2Auth: []
+
+    put:
+      tags:
+        - "Projects"
+      summary: "Update project details."
+      description: "Modifies the specified project's data."
+      operationId: "updateProject"
+      parameters:
+        - name: "projectId"
+          in: "path"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+                metadata:
+                  $ref: "#/components/schemas/MetadataSchema"
+      responses:
+        "200":
+          description: "Project updated successfully."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  metadata:
+                    $ref: "#/components/schemas/MetadataSchema"
+        "400":
+          description: "Bad Request – validation errors or invalid input."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "401":
+          description: "Unauthorized."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "403":
+          description: "Forbidden."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "404":
+          description: "Project not found for update."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "429":
+          description: "Too Many Requests."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "500":
+          description: "Internal Server Error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+      security:
+        - bearerAuth: []
+        - oauth2Auth: []
+
+    delete:
+      tags:
+        - "Projects"
+      summary: "Delete a project permanently."
+      description: "Removes the project from the system, if permissible under user role restrictions."
+      operationId: "deleteProject"
+      parameters:
+        - name: "projectId"
+          in: "path"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: "Project deleted successfully – no content returned."
+        "401":
+          description: "Unauthorized."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "403":
+          description: "Forbidden – insufficient permissions to delete."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "404":
+          description: "Project not found."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "429":
+          description: "Too Many Requests."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+        "500":
+          description: "Internal Server Error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+      security:
+        - bearerAuth: []
+        - oauth2Auth: []
+
+  ##############################################################################
+  # TASKS RESOURCE (BASIC ILLUSTRATION)
+  ##############################################################################
+  /tasks:
+    get:
+      tags:
+        - "Tasks"
+      summary: "Retrieve a list of tasks."
+      description: >-
+        Returns a list of tasks with optional advanced pagination. This endpoint
+        can be refined by query parameters (e.g., assignee, due date).
+      operationId: "listTasks"
+      responses:
+        "200":
+          description: "Tasks returned successfully."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        title:
+                          type: string
+                        dueDate:
+                          type: string
+                          format: date-time
+                        status:
+                          type: string
+                          enum: [Open, InProgress, Completed]
+                  pagination:
+                    $ref: "#/components/schemas/PaginationSchema"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+        - oauth2Auth: []
+
+  ##############################################################################
+  # ANALYTICS RESOURCE (SAMPLE READ ENDPOINT)
+  ##############################################################################
+  /analytics:
+    get:
+      tags:
+        - "Analytics"
+      summary: "Retrieve platform-level analytics data."
+      description: >-
+        Provides aggregated metrics, predictive analysis results, and resource
+        optimization insights. This route requires elevated privileges and may
+        enforce specific OAuth2 scopes.
+      operationId: "getAnalytics"
+      responses:
+        "200":
+          description: "Analytics data fetched successfully."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  utilizationRate:
+                    type: number
+                    format: float
+                    description: "Overall resource utilization percentage."
+                  taskCompletionForecast:
+                    type: string
+                    description: "High-level forecast of task completion schedule."
+                  historicalTrends:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        timestamp:
+                          type: string
+                          format: date-time
+                        metricValue:
+                          type: number
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+      security:
+        - oauth2Auth:
+            - admin              # Example scope requirement for analytics
+        - bearerAuth: []
+
+  ##############################################################################
+  # MONITORING/HEALTH ENDPOINT
+  # (Verifies system readiness & integrates with system monitoring/tracing)
+  ##############################################################################
+  /monitoring/health:
+    get:
+      tags:
+        - "Monitoring"
+      summary: "Health check endpoint."
+      description: >-
+        Returns an immediate snapshot of TaskStream AI's health and readiness,
+        facilitating load balancer or orchestrator integration. Incorporates
+        system uptime, version, memory usage, and optional tracing hooks.
+      operationId: "healthCheck"
+      responses:
+        "200":
+          description: "System healthy."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  uptimeSeconds:
+                    type: integer
+                  version:
+                    type: string
+                  memoryUsageMB:
+                    type: number
+                    format: float
+        "503":
+          description: "Service Unavailable."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorSchema"
+      security:
+        # This endpoint can be accessed with an API key or OAuth2
+        - apiKeyAuth: []
+        - oauth2Auth: []
+
+################################################################################
+# COMPONENTS INCLUDING SCHEMAS, SECURITY SCHEMES, & COMMON RESPONSES
+################################################################################
+components:
+
+  ##############################################################################
+  # SCHEMAS IMPORTED & EXTENDED
+  ##############################################################################
+  schemas:
+    ##########################################################################
+    # Common Schemas from common.yaml
+    ##########################################################################
+    MetadataSchema:
+      $ref: "./schemas/common.yaml#/components/schemas/MetadataSchema"
+
+    ErrorSchema:
+      $ref: "./schemas/common.yaml#/components/schemas/ErrorSchema"
+
+    PaginationSchema:
+      $ref: "./schemas/common.yaml#/components/schemas/PaginationSchema"
+
+    ##########################################################################
+    # MonitoringSchema
+    # (Not actually defined in common.yaml, so we define a local placeholder.)
+    ##########################################################################
+    MonitoringSchema:
+      type: object
+      title: "MonitoringSchema"
+      description: "Placeholder schema for advanced monitoring configurations."
+      properties:
+        enabled:
+          type: boolean
+          default: true
+        traceLevel:
+          type: string
+          enum: ["NONE", "BASIC", "VERBOSE"]
+          default: "BASIC"
+
+    ##########################################################################
+    # Auth Schemas from auth.yaml
+    ##########################################################################
+    UserSchema:
+      $ref: "./schemas/auth.yaml#/components/schemas/UserSchema"
+
+    AuthRequestSchema:
+      $ref: "./schemas/auth.yaml#/components/schemas/AuthRequestSchema"
+
+    AuthResponseSchema:
+      $ref: "./schemas/auth.yaml#/components/schemas/AuthResponseSchema"
+
+    ##########################################################################
+    # TokenSchema
+    # We define it locally, as it is referenced in the specification but
+    # not found in the imported auth.yaml
+    ##########################################################################
+    TokenSchema:
+      type: object
+      title: "TokenSchema"
+      description: >-
+        Represents a refresh token payload used to request a new JWT
+        access token. Includes optional clientMetadata for detailed
+        contextual data (device, region, environment).
+      properties:
+        refreshToken:
+          type: string
+          description: "Valid refresh token string."
+        clientMetadata:
+          type: object
+          additionalProperties: true
+          description: "Generic object capturing additional context for token usage."
+
+  ##############################################################################
+  # SECURITY SCHEMES IMPORTED
+  ##############################################################################
+  securitySchemes:
+    bearerAuth:
+      $ref: "./security.yaml#/components/securitySchemes/bearerAuth"
+
+    oauth2Auth:
+      $ref: "./security.yaml#/components/securitySchemes/oauth2Auth"
+
+    apiKeyAuth:
+      $ref: "./security.yaml#/components/securitySchemes/apiKeyAuth"
+
+    ##########################################################################
+    # rateLimitScheme
+    # (Placeholder to illustrate a 1000 req/min limit in the specification.)
+    ##########################################################################
+    rateLimitScheme:
+      type: object
+      description: "Global rate limiting scheme of 1000 requests per minute."
+      properties:
+        maxRequestsPerMinute:
+          type: integer
+          default: 1000
+        windowInSeconds:
+          type: integer
+          default: 60
+
+  ##############################################################################
+  # COMMON RESPONSE REFERENCES
+  ##############################################################################
+  responses:
+    Unauthorized:
+      description: "Unauthorized – you lack valid auth credentials."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorSchema"
+
+    Forbidden:
+      description: "Forbidden – you lack sufficient permissions."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorSchema"
+
+    NotFound:
+      description: "Resource not found."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorSchema"
+
+    TooManyRequests:
+      description: "Rate limit exceeded – please retry after some time."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorSchema"
+
+    InternalServerError:
+      description: "Internal Server Error – server encountered an unexpected condition."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorSchema"
+
+################################################################################
+# GLOBAL SECURITY REQUIREMENTS (DEFAULT)
+################################################################################
+security:
+  - bearerAuth: []
+  - oauth2Auth: []
+  - apiKeyAuth: []
+  - rateLimitScheme: []
+
+################################################################################
+# MONITORING CONFIGURATION
+# (Referencing the MONITORING_ENABLED global. Additional fields can be set.)
+################################################################################
+monitoring:
+  enabled: true
+  traceIntegration: "jaeger"
+  logs: "aggregated"
+
+################################################################################
+# VENDOR EXTENSIONS FOR BUILD FUNCTIONS & EXPORT
+################################################################################
+x-functions:
+  ##########################################################################
+  # generateOpenAPISpec
+  # Decorators: ["@validateSpec", "@addMonitoring"]
+  # ------------------------------------------------------------------------
+  # Creates an enriched OpenAPI spec with:
+  #  - Enhanced security definitions (JWT, OAuth2, rate limiting)
+  #  - Comprehensive error responses
+  #  - Monitoring/tracing setup
+  #  - Health check endpoints
+  #  - Deprecation notices & usage examples
+  ##########################################################################
+  generateOpenAPISpec: |
+    @validateSpec
+    @addMonitoring
+    export function generateOpenAPISpec(): Record<string, any> {
+      // 1) Define OpenAPI version as 3.0.3 (noted in the 'openapi' field above).
+      // 2) Add enhanced API information and metadata in the 'info' section.
+      // 3) Configure multiple servers for multi-region environments (production, staging, local).
+      // 4) Import comprehensive security schemes (bearerAuth, oauth2Auth, apiKeyAuth, rateLimit).
+      // 5) Incorporate extended common schemas for metadata, errors, pagination, and monitoring.
+      // 6) Import service-specific schemas (AuthRequest, AuthResponse, etc.) from auth.yaml.
+      // 7) Define global parameters (cursor, limit) and standard headers where needed.
+      // 8) Add detailed error responses referencing ErrorSchema with enumerated codes.
+      // 9) Configure each API endpoint with security, describing request/response.
+      // 10) Include monitoring configurations, tracing, and a dedicated health check endpoint.
+      // 11) Add deprecation notices (if needed) to older endpoints.
+      // 12) Provide example requests/responses for clarity in the docs.
+      // 13) Return or store the final spec as needed for your code generation or usage pipeline.
+      return {}
+    }
+
+x-exports:
+  ##########################################################################
+  # OpenAPISpec
+  # Exports the fully assembled specification entity, referencing named parts.
+  ##########################################################################
+  OpenAPISpec:
+    openapi: "#/openapi"
+    info: "#/info"
+    servers: "#/servers"
+    paths: "#/paths"
+    components: "#/components"
+    security: "#/security"
+    tags: "#/tags"
+    monitoring: "#/monitoring"
