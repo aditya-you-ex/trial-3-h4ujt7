@@ -1,0 +1,175 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+
+################################################################################
+# HORIZONTAL POD AUTOSCALER (HPA) CONFIGURATION FOR TASKSTREAM AI - TASKS SERVICE
+# ------------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This file defines the Kubernetes HorizontalPodAutoscaler resource for the
+#   "tasks" service in the TaskStream AI platform. It automatically adjusts the
+#   number of running pod replicas based on CPU utilization, memory usage, and
+#   custom metric thresholds to ensure optimal performance, reliability, and
+#   compliance with the technical specifications.
+#
+# REFERENCES & IMPORTS (IE1):
+#   1) Deployment Reference (deployment.yaml):
+#       - metadata.name => "taskstream-tasks" (target for scaling).
+#       - spec.replicas => 5 (initial baseline replicated from the deployment).
+#   2) tasks-limits (LimitRange) and tasks-quota (ResourceQuota):
+#       - Ensures appropriate CPU/memory usage boundaries and overall cluster
+#         resource governance.
+#
+# TECHNICAL SPECIFICATIONS ALIGNMENT:
+#   - "Deployment Environment" (Section 8.1) for multi-region AWS with auto-scaling.
+#   - "Orchestration" (Section 8.4) with HPA set at 70% CPU usage minimum, 80%
+#     memory usage, and advanced scaling behaviors (min 5, max 20 replicas).
+#   - "Infrastructure Requirements" (Section 2.5.1) for robust compute scaling.
+#
+# WHY USE autoscaling/v2 (LD2):
+#   - Provides multiple metric support (CPU, memory, custom Pods metric).
+#   - Supports behavior-based scaleUp/scaleDown policies for enterprise-grade
+#     production stability.
+################################################################################
+metadata:
+  name: taskstream-tasks-hpa
+  namespace: taskstream
+  labels:
+    # Standard labels identifying the application and relevant environment
+    app: taskstream
+    component: tasks
+    tier: backend
+    environment: production
+    version: v1
+    cost-center: backend-services
+  annotations:
+    # This annotation indicates that custom scaling metrics are enabled for
+    # monitoring by the TaskStream AI platform.
+    monitoring.taskstream.ai/scaling-metrics: "enabled"
+    # Prometheus scraping hints for aggregated HPA metrics (optional).
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+
+################################################################################
+# SPEC SECTION
+# ------------------------------------------------------------------------------
+# scaleTargetRef:
+#   - References the "taskstream-tasks" Deployment defined in deployment.yaml.
+#     The HPA will monitor and adjust replica counts for that Deployment.
+# minReplicas:
+#   - The minimum number of pods required to ensure baseline availability (5).
+# maxReplicas:
+#   - The maximum number of pods allowed to accommodate traffic spikes (20).
+# metrics:
+#   - Resource-based metrics for CPU and memory utilization thresholds.
+#   - Pods-based custom metric ("request_latency_seconds") to monitor latency and
+#     trigger scale-outs if average latency crosses declared thresholds.
+# behavior:
+#   - Defines scaleUp and scaleDown behavior with stabilization windows and
+#     multiple scaling policies for sophisticated auto-scaling decisions.
+################################################################################
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: taskstream-tasks
+
+  # Minimum replicas ensures the tasks service always has at least 5 running pods
+  # for high availability, aligning with the deployment's spec.replicas.
+  minReplicas: 5
+
+  # Maximum replicas set to 20, allowing the tasks service to handle large surges
+  # in workload while respecting cluster resource constraints and tasks-quota.
+  maxReplicas: 20
+
+  metrics:
+    ##############################################################################
+    # 1) CPU UTILIZATION METRIC
+    # ---------------------------------------------------------------------------
+    # type: Resource => monitors CPU usage. If average CPU usage across pods
+    # exceeds 70% of the requested CPU (defined in tasks-limits), the HPA scales
+    # up the number of pods to keep CPU usage in check.
+    ##############################################################################
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    ##############################################################################
+    # 2) MEMORY UTILIZATION METRIC
+    # ---------------------------------------------------------------------------
+    # type: Resource => monitors memory usage. If memory usage across pods goes
+    # beyond 80% of the requested memory, the HPA triggers scale-ups to maintain
+    # stable performance under memory-intensive tasks.
+    ##############################################################################
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+    ##############################################################################
+    # 3) CUSTOM PODS METRIC
+    # ---------------------------------------------------------------------------
+    # type: Pods => monitors the average "request_latency_seconds" metric across
+    # all pods. This metric is typically gathered from application-level or
+    # custom instrumentation. If the average latency climbs above 0.1s, it
+    # indicates performance bottlenecks, prompting additional replicas to be
+    # provisioned.
+    ##############################################################################
+    - type: Pods
+      pods:
+        metric:
+          name: request_latency_seconds
+        target:
+          type: AverageValue
+          averageValue: "0.1"
+
+  ################################################################################
+  # SCALING BEHAVIOR (SCALEUP/SCALEDOWN)
+  # ------------------------------------------------------------------------------
+  # scaleUp:
+  #   - stabilizationWindowSeconds: The window (in seconds) that the HPA waits
+  #     before scaling up further. Prevents thrashing during transient spikes.
+  #   - policies: List of scaling rate limits (pods or %). "Max" selectPolicy
+  #     picks the largest possible scale action from the policies.
+  # scaleDown:
+  #   - stabilizationWindowSeconds: Period to wait before scaling down again,
+  #     preventing excessive down-scale events if usage briefly dips.
+  #   - policies: List of scaling rate limits. "Min" selectPolicy picks the
+  #     smallest possible scale action to gradually reduce replica counts,
+  #     preventing abrupt shrinkage that might cause disruption.
+  ################################################################################
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        # Policy 1: Scale by a maximum of 2 additional pods every 60s.
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+        # Policy 2: Scale up by a maximum of 50% of current replicas over a 30s
+        # period. For example, if 10 pods are running, 50% means up to 5 pods.
+        - type: Percent
+          value: 50
+          periodSeconds: 30
+      # "Max" => to be most aggressive among the defined scaleUp policies
+      selectPolicy: Max
+
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        # Policy 1: Scale down by a maximum of 1 pod every 120s, ensuring slow,
+        # controlled scale-down steps.
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+        # Policy 2: Scale down by up to 20% of current replicas in any 60s period.
+        # For instance, if 10 pods are running, scale down by up to 2 pods.
+        - type: Percent
+          value: 20
+          periodSeconds: 60
+      # "Min" => to be conservative among the defined scaleDown policies
+      selectPolicy: Min
