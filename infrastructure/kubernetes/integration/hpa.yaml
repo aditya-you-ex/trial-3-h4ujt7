@@ -1,0 +1,88 @@
+# ------------------------------------------------------------------------------
+# FILE: hpa.yaml
+# DESCRIPTION: HorizontalPodAutoscaler configuration for Integration Service
+# API GROUP: autoscaling/v2 (k8s.io/api v1.27+)
+# PURPOSE: Automatically scales Integration Service pods based on CPU and memory
+#          utilization metrics, ensuring high availability (99.9% uptime target)
+#          and optimized resource usage (40% improvement) per requirements.
+# NOTE: Emphasizes enterprise-grade reliability, advanced scaling behavior,
+#       and compliance with production security & performance standards.
+# ------------------------------------------------------------------------------
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+
+metadata:
+  # The name uniquely identifies this HPA within the 'taskstream' namespace.
+  name: integration-service
+  namespace: taskstream
+
+  # Labels assist in organization, selection, operational grouping, and
+  # identification within a Kubernetes cluster.
+  labels:
+    app: integration-service        # Identifies application name
+    component: backend             # Indicates this pertains to backend logic
+    part-of: taskstream            # Associates with the TaskStream AI platform
+    managed-by: kubernetes         # Specifies that Kubernetes manages this resource
+    environment: production        # Denotes a production-grade deployment
+
+  # Annotations store metadata that is not used for object selection.
+  annotations:
+    description: "HPA for integration service with CPU and memory based scaling"
+    last-updated: "2023-11-08"
+    monitoring.taskstream.io/alerts: "enabled"
+
+spec:
+  # Reference to the target resource (Deployment) that this HPA will scale.
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: integration-service
+
+  # Ensures at least two replicas are always running for resilience.
+  minReplicas: 2
+
+  # The maximum number of pods this service can scale to, preventing runaway
+  # resource consumption.
+  maxReplicas: 10
+
+  # Metrics define the resources on which this HPA will base scaling decisions.
+  # Here, it uses both CPU and memory utilization to determine if the workload
+  # should scale up or down.
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70  # Average CPU utilization threshold
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80 # Average memory utilization threshold
+
+  # Defines scaling behavior to control how quickly pods are scaled up or down.
+  behavior:
+    scaleUp:
+      # Stabilization window: Only scale up after 60 seconds of sustained usage
+      # above thresholds to prevent rapid fluctuations.
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          # Maximum number of pods that can be added within the specified period.
+          value: 2
+          periodSeconds: 60
+      selectPolicy: Max  # Uses the most conservative policy that prevents overscaling
+
+    scaleDown:
+      # Stabilization window: Maintains scaled state for 300 seconds (5 minutes)
+      # before reducing the number of pods, to avoid thrashing during usage spikes.
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          # The maximum number of pods that can be removed within the specified period.
+          value: 1
+          periodSeconds: 60
+      selectPolicy: Min  # Uses the most conservative policy that prevents underscaling
