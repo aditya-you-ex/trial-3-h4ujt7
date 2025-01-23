@@ -1,0 +1,221 @@
+# -----------------------------------------------------------------------------------
+# FILE: deployment.yaml
+# DESCRIPTION: Kubernetes Deployment configuration for the Integration Service
+#              within TaskStream AI. This deployment manages external service
+#              integrations (email, Slack, Jira, etc.), featuring robust security,
+#              caching, monitoring, and reliability at enterprise scale.
+#
+# INTERNAL IMPORTS:
+#   1) service.yaml (v1) // Named import: service_name = "integration-service"
+#      Provides consistent service naming and labels.
+#   2) hpa.yaml (v2)     // Named import: scaling_config
+#      Supplies auto-scaling configuration that references this Deployment.
+#
+# EXTERNAL IMPORTS:
+#   - k8s.io/api (v1.27+) // Kubernetes API resources for Deployment
+#
+# GLOBAL CONSTANTS:
+#   - INTEGRATION_SERVICE_IMAGE: "taskstream/integration-service:latest"
+#   - DEFAULT_REPLICAS: "3"
+#   - DEFAULT_PORT: "8080"
+#
+# REQUIREMENTS ADDRESSED:
+#   1) Integration Framework: Secure container deployment connecting to enterprise tools.
+#   2) System Reliability: 99.9% uptime objective via rolling updates, probes, and
+#      resource constraints.
+#   3) Container Orchestration: Aligns with multi-region AWS EKS architecture for
+#      advanced security, rolling updates, and auto-scaling.
+#
+# SCHEMA COMPLIANCE:
+#   apiVersion: apps/v1
+#   kind: Deployment
+#   metadata:
+#     name, namespace, labels, annotations
+#   spec:
+#     replicas, strategy, selector, template, AFFINITY, etc.
+#
+# USAGE NOTES:
+#   - This Deployment references the "integration-service" selector so the Service
+#     (service.yaml) and HPA (hpa.yaml) align with it.
+#   - Probes ensure health checks for liveness, readiness, and startup, minimizing
+#     downtime during updates.
+#   - SecurityContext enforces non-root operation with seccomp for production security.
+# -----------------------------------------------------------------------------------
+
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  # The name of this Deployment must match references in the HPA and Service definitions.
+  name: integration-service
+  namespace: taskstream
+
+  # Labels categorize and identify this Deployment for selection by other components.
+  labels:
+    app: integration-service      # Matches the service_name from service.yaml
+    component: backend
+    part-of: taskstream
+    version: v1
+    tier: integration
+
+  # Annotations provide metadata for versioning, auditing, and monitoring integration.
+  annotations:
+    kubernetes.io/change-cause: "Initial deployment"      # Tracks the reason for change
+    prometheus.io/scrape: "true"                          # Enables Prometheus scraping
+    prometheus.io/port: "8080"                            # Metrics port for scraping
+    prometheus.io/path: "/metrics"                        # Metrics endpoint path
+
+spec:
+  # The initial number of replicas. The HPA (if enabled) can override this.
+  replicas: 3
+
+  # Rolling update strategy to enable zero-downtime upgrades in production environments.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1         # Allows creation of one extra pod before scaling down
+      maxUnavailable: 0   # Ensures all pods remain available during updates
+
+  # Selector to match pods in this Deployment. Must align with template.metadata.labels.
+  selector:
+    matchLabels:
+      app: integration-service
+
+  template:
+    metadata:
+      # Labels for the Pod template. Must match the selector above.
+      labels:
+        app: integration-service
+        version: v1
+        tier: integration
+
+      # Annotations at the Pod level for scraping, checksums, and sysctl overrides.
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+        checksum/config: "${CONFIG_CHECKSUM}"  # Allows rolling pods on config changes
+        security.alpha.kubernetes.io/sysctls: "net.ipv4.tcp_keepalive_time=60,net.ipv4.tcp_keepalive_intvl=15,net.ipv4.tcp_keepalive_probes=5"
+
+    spec:
+      # Applies security best practices, enforcing non-root usage and seccomp profiles.
+      serviceAccountName: integration-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: integration-service
+          image: "taskstream/integration-service:latest"
+          imagePullPolicy: Always
+
+          # Security context for the container to drop privileges and provide a read-only filesystem.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+          # Expose two ports:
+          # 1) http: main application (DEFAULT_PORT=8080)
+          # 2) metrics: additional port for custom metrics or debugging (8081).
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+            - containerPort: 8081
+              name: metrics
+              protocol: TCP
+
+          # Environment variables for dynamic config and introspection.
+          env:
+            - name: CONFIG_PATH
+              value: "/etc/taskstream/config.yaml"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+
+          # Loads secrets from a referenced Kubernetes Secret named "integration-service-secrets".
+          envFrom:
+            - secretRef:
+                name: integration-service-secrets
+
+          # Resource requests and limits ensure pods have adequate CPU/memory to prevent oversubscription.
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+          # Kubernetes probes for liveness, readiness, and startup checks, ensuring 99.9% uptime.
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+
+          # Mounts configuration files and a temporary storage volume (e.g., for working files).
+          volumeMounts:
+            - name: config
+              mountPath: /etc/taskstream
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+
+      # Volumes used by the Pod: config map for application config, emptyDir for ephemeral data.
+      volumes:
+        - name: config
+          configMap:
+            name: integration-service-config
+        - name: tmp
+          emptyDir: {}
+
+      # Pod Anti-Affinity to avoid scheduling multiple replicas on the same node, enhancing resilience.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - integration-service
+                topologyKey: "kubernetes.io/hostname"
+
+      # Grace period to allow in-flight requests to complete before shutting down pods.
+      terminationGracePeriodSeconds: 60
