@@ -1,0 +1,149 @@
+################################################################################
+# FILE: Chart.yaml
+# Helm Chart definition for the Natural Language Processing (NLP) microservice
+# that handles task extraction from team communications.
+#
+# IMPLEMENTATION OVERVIEW:
+# ------------------------
+# This file implements the "NLPChartConfig" class and the "generateDependencies"
+# function described in the JSON specification. It addresses the following
+# critical requirements from the Technical Specification:
+#   - Task Extraction Accuracy (95%)
+#   - System Reliability (99.9% uptime)
+#   - Resource Optimization (40% improvement)
+#
+# EXTERNAL IMPORTS (Helm v3):
+# --------------------------
+# This chart is packaged using Helm version v3.
+#
+# INTERNAL IMPORTS (from infrastructure/helm/values/nlp.yaml):
+# ------------------------------------------------------------
+#   - image (object): Configures the container registry, tag, and pull policy
+#   - resources (object): Sets CPU/memory requests and limits for ML workloads
+#   - autoscaling (object): Enables horizontal pod autoscaling for performance
+#   - monitoring (object): Example placeholder for integrating custom metrics
+#
+# CLASS: NLPChartConfig
+# ---------------------
+# DESCRIPTION:
+#   Helm Chart configuration for NLP service deployment. Provides metadata,
+#   keywords, maintainers, and annotations as per the specification.
+#
+# PROPERTIES:
+#   name (str)              : The chart name (e.g., "taskstream-nlp")
+#   description (str)       : A detailed description of this chart
+#   keywords (array[str])   : Keywords to categorize or describe the chart
+#   home (str)              : The homepage or project URL for the chart
+#   maintainers (array[str]): List of maintainers with name, email, url
+#   annotations (object)    : Annotations for artifact repositories and metadata
+#
+# CONSTRUCTOR:
+#   parameters:
+#     - version (str):     Chart version
+#   steps:
+#     1) Set chart name to "taskstream-nlp".
+#     2) Provide a comprehensive chart description covering:
+#        - 95% task extraction accuracy
+#        - 99.9% system reliability
+#        - 40% resource optimization
+#     3) Define relevant keywords for discoverability.
+#     4) Configure maintainers with name/email information.
+#     5) Set up chart annotations including "artifacthub.io" fields.
+#     6) Initialize the dependencies configuration by calling
+#        "generateDependencies".
+#
+# FUNCTION: generateDependencies(dependencies)
+# --------------------------------------------
+# DESCRIPTION:
+#   Generates chart dependencies configuration required for advanced NL
+#   resource management, metrics, and autoscaling. This specifically sets up:
+#     - metrics-server for HPA CPU metrics
+#     - prometheus-adapter for custom or external metrics
+#     - vertical-pod-autoscaler (VPA) for resource optimization
+#
+# PARAMETERS:
+#   dependencies (array): The dependencies array in the Chart YAML
+#
+# RETURNS:
+#   object: The fully formed array of Helm dependencies
+#
+# STEPS:
+#   1) Define metrics-server dependency for HPA support (CPU utilization).
+#   2) Configure prometheus-adapter to feed custom metrics to the HPA.
+#   3) Set up vertical-pod-autoscaler for advanced resource optimization.
+#   4) Configure version constraints for each dependency.
+#   5) Define the repository URLs for each dependency.
+#   6) Use "condition" and "tags" fields to allow enabling/disabling dependencies.
+#
+# EXPORT: Chart (helm-chart)
+# --------------------------
+# MEMBERS EXPOSED:
+#   - metadata     (object): Chart metadata including name, description, version
+#   - dependencies (array) : Dependencies required for advanced NLP operations
+#   - annotations  (object): Additional metadata for artifact repositories
+#
+# PURPOSE:
+#   Defines and exposes the Helm Chart metadata for the NLP service, ensuring it
+#   meets the reliability, accuracy, and resource optimization requirements.
+################################################################################
+
+apiVersion: v2
+name: "taskstream-nlp"
+description: >
+  Helm Chart for deploying the TaskStream NLP service. This chart focuses on
+  achieving 95% task extraction accuracy, ensuring 99.9% uptime, and a 40%
+  improvement in resource utilization through autoscaling. It integrates with
+  internal Helm values for container image configuration, resource requests,
+  and advanced vertical pod autoscaling capabilities.
+type: application
+version: "1.0.0"
+
+keywords:
+  - "nlp"
+  - "ai"
+  - "task-extraction"
+  - "taskstream"
+  - "helm"
+
+home: "https://www.example.com/taskstream-ai-nlp"
+
+maintainers:
+  - name: "TaskStream AI Team"
+    email: "support@example.com"
+    url: "https://www.example.com"
+
+annotations:
+  artifacthub.io/changes: "- Initial release of NLP service chart\n- Configured for high availability\n- Optimized resource utilization"
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/license: "MIT"
+
+###############################################################################
+# CHART DEPENDENCIES
+# - Generated by generateDependencies(); includes metrics-server, prometheus-
+#   adapter, and vertical-pod-autoscaler for comprehensive metric tracking
+#   and resource optimization.
+###############################################################################
+dependencies:
+  - name: "metrics-server"
+    version: "5.10.12"
+    repository: "https://kubernetes-sigs.github.io/metrics-server/"
+    condition: "autoscaling.enabled"
+    tags:
+      - "autoscaling"
+      - "metrics"
+
+  - name: "prometheus-adapter"
+    version: "2.6.2"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: "monitoring.enabled"
+    tags:
+      - "monitoring"
+      - "metrics"
+
+  - name: "vertical-pod-autoscaler"
+    version: "4.1.0"
+    repository: "https://charts.k8s.io"
+    condition: "autoscaling.verticalPodAutoscaler"
+    tags:
+      - "autoscaling"
+      - "resource-optimization"
