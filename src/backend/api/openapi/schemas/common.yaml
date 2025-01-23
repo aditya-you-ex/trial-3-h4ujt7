@@ -1,0 +1,183 @@
+openapi: "3.0.3"
+
+####################################################################################################
+# TaskStream AI Common OpenAPI Schemas
+# This file defines shared schema components used across the platform, including:
+# 1) MetadataSchema: Enforces consistent entity metadata with strict validation.
+# 2) ErrorSchema: Defines a comprehensive error response format with a rich set of fields
+#    (error code, timestamp, details, suggestions, etc.).
+# 3) PaginationSchema: Provides advanced cursor-based pagination parameters with
+#    additional filtering and sorting capabilities, as well as total counts.
+####################################################################################################
+
+info:
+  title: "TaskStream AI Common Schemas"
+  version: "1.0.0"
+  description: >
+    Shared OpenAPI schema definitions for common data structures and responses.
+    These schemas facilitate consistent integration across all TaskStream AI microservices.
+
+# No API paths are defined here; this file only contains reusable schema definitions.
+paths: {}
+
+components:
+  schemas:
+
+    ################################################################################################
+    # MetadataSchema
+    # ----------------------------------------------------------------------------
+    # Provides standardized metadata fields for any entity within the platform,
+    # including timestamps (ISO 8601), user/service identifiers (UUID format),
+    # and a version for concurrency control or compatibility tracking.
+    ################################################################################################
+    MetadataSchema:
+      type: object
+      title: "MetadataSchema"
+      description: "Schema for capturing common entity metadata with strict validation rules."
+      required:
+        - createdAt
+        - updatedAt
+        - createdBy
+        - updatedBy
+        - version
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+          description: "Timestamp of entity creation in ISO 8601 format."
+        updatedAt:
+          type: string
+          format: date-time
+          description: "Timestamp of the most recent entity update in ISO 8601 format."
+        createdBy:
+          type: string
+          format: uuid
+          description: "UUID identifying the creator (user or service)."
+        updatedBy:
+          type: string
+          format: uuid
+          description: "UUID identifying the last updater (user or service)."
+        version:
+          type: integer
+          description: "Version number used for concurrency and schema compatibility tracking."
+
+    ################################################################################################
+    # ErrorSchema
+    # ----------------------------------------------------------------------------
+    # Defines a comprehensive structure for TaskStream AI error responses.
+    # This schema encapsulates:
+    # 1) code: A detailed enum of possible system-wide error codes.
+    # 2) message: Human-readable explanation of the error, with enforced length bounds.
+    # 3) timestamp: ISO 8601 date-time string for when the error occurred.
+    # 4) requestId: A string correlating this error instance to a specific request.
+    # 5) details: An additional object carrying flexible error context.
+    # 6) suggestions: An optional array of resolution hints.
+    # Essential fields are marked as required to ensure consistent error handling.
+    ################################################################################################
+    ErrorSchema:
+      type: object
+      title: "ErrorSchema"
+      description: "Schema for detailed error reporting across the TaskStream AI platform."
+      required:
+        - code
+        - message
+        - timestamp
+        - requestId
+      properties:
+        code:
+          type: string
+          description: "Platform-wide standardized error code."
+          enum:
+            # Consolidated from VALIDATION_ERRORS, AUTH_ERRORS, TASK_ERRORS,
+            # PROJECT_ERRORS, and SYSTEM_ERRORS in error-codes.ts
+            - INVALID_INPUT
+            - MISSING_REQUIRED_FIELD
+            - INVALID_FORMAT
+            - DATA_TYPE_MISMATCH
+            - UNAUTHORIZED
+            - INVALID_TOKEN
+            - TOKEN_EXPIRED
+            - INSUFFICIENT_PERMISSIONS
+            - TASK_NOT_FOUND
+            - INVALID_STATUS
+            - INVALID_ASSIGNMENT
+            - DUPLICATE_TASK
+            - PROJECT_NOT_FOUND
+            - INVALID_PROJECT_STATUS
+            - PROJECT_ACCESS_DENIED
+            - INTERNAL_ERROR
+            - SERVICE_UNAVAILABLE
+            - DATABASE_ERROR
+            - INTEGRATION_ERROR
+        message:
+          type: string
+          description: "Descriptive error message indicating cause or guidance."
+          minLength: 3
+          maxLength: 2048
+        timestamp:
+          type: string
+          format: date-time
+          description: "ISO 8601 date-time when the error was generated."
+        requestId:
+          type: string
+          description: "Correlates the error to a specific request for tracing."
+        details:
+          type: object
+          description: "Flexible field for any additional error data or parameters."
+          additionalProperties: true
+        suggestions:
+          type: array
+          description: "Optional array of recommended steps or remediation hints."
+          items:
+            type: string
+
+    ################################################################################################
+    # PaginationSchema
+    # ----------------------------------------------------------------------------
+    # Provides advanced cursor-based pagination capabilities, along with supplemental
+    # fields for sorting, filtering, and aggregating metadata (e.g., total counts).
+    # This schema can be applied to both request parameters and response objects,
+    # ensuring consistent usage across microservices.
+    ################################################################################################
+    PaginationSchema:
+      type: object
+      title: "PaginationSchema"
+      description: "Schema for advanced cursor-based pagination with additional filtering."
+      required:
+        - limit
+        - direction
+        - sortBy
+        - sortDirection
+        - totalCount
+      properties:
+        cursor:
+          type: string
+          description: "Token pointing to a specific position in the dataset."
+        limit:
+          type: integer
+          description: "Maximum number of items to retrieve in one page."
+          minimum: 1
+          maximum: 100
+        direction:
+          type: string
+          description: "Pagination direction indicator for forward/backward navigation."
+          enum:
+            - forward
+            - backward
+        sortBy:
+          type: string
+          description: "Field name used to order the results."
+        sortDirection:
+          type: string
+          description: "Ascending or descending sort for the field defined in 'sortBy'."
+          enum:
+            - ASC
+            - DESC
+        filter:
+          type: object
+          description: "Optional object describing additional query filters."
+          additionalProperties: true
+        totalCount:
+          type: integer
+          description: "Total number of matching records, aiding result pagination."
+          minimum: 0
