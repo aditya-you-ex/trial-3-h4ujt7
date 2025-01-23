@@ -1,0 +1,121 @@
+{
+  // ---------------------------------------------------------------------------
+  // TaskStream AI - TypeScript Configuration
+  // ---------------------------------------------------------------------------
+  // This file provides comprehensive TypeScript compiler settings optimized
+  // for React 18+ development, strict type checking, and robust code quality.
+  // ---------------------------------------------------------------------------
+
+  "compilerOptions": {
+    // Target ECMAScript next-generation features for modern JavaScript output
+    "target": "ESNext",
+
+    // Include the DOM library, DOM.Iterable, and all next-generation JS features
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+
+    // Use ESNext module system (import/export syntax), ideal for bundlers
+    "module": "ESNext",
+
+    // Skip type definition checks for library files to reduce build time
+    "skipLibCheck": true,
+
+    // Employ bundler-based resolution, aligning with modern build tools
+    "moduleResolution": "bundler",
+
+    // Allow importing TypeScript files with extension syntax, e.g., import x from "./file.ts"
+    "allowImportingTsExtensions": true,
+
+    // Enable importing and handling of JSON files as modules
+    "resolveJsonModule": true,
+
+    // Treat each file as a self-contained module for faster builds
+    "isolatedModules": true,
+
+    // Do not emit compiled output; rely on bundler to handle artifacts
+    "noEmit": true,
+
+    // Use the React 18 JSX transform
+    "jsx": "react-jsx",
+
+    // Enable all strict type-checking options
+    "strict": true,
+
+    // Warn and disallow unused local variables
+    "noUnusedLocals": true,
+
+    // Warn and disallow unused function parameters
+    "noUnusedParameters": true,
+
+    // Disallow fallthrough in switch statements for safer control flow
+    "noFallthroughCasesInSwitch": true,
+
+    // Permit JavaScript files alongside TypeScript
+    "allowJs": true,
+
+    // Enable interoperability for importing CommonJS modules
+    "esModuleInterop": true,
+
+    // Allow default imports from modules with no default export
+    "allowSyntheticDefaultImports": true,
+
+    // Enforce consistent file name casing across the codebase
+    "forceConsistentCasingInFileNames": true,
+
+    // Generate and use incremental build information files for faster rebuilds
+    "incremental": true,
+
+    // Set the base directory for resolving non-relative module names
+    "baseUrl": ".",
+
+    // Provide custom import path mapping for a more intuitive folder structure
+    "paths": {
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@pages/*": ["src/pages/*"],
+      "@store/*": ["src/store/*"],
+      "@services/*": ["src/services/*"],
+      "@hooks/*": ["src/hooks/*"],
+      "@utils/*": ["src/utils/*"],
+      "@types/*": ["src/types/*"],
+      "@constants/*": ["src/constants/*"],
+      "@config/*": ["src/config/*"],
+      "@assets/*": ["src/assets/*"],
+      "@styles/*": ["src/styles/*"]
+    },
+
+    // Add global type definitions to ensure smooth development and testing
+    "types": [
+      "vite/client",
+      "jest",
+      "@testing-library/jest-dom"
+    ]
+  },
+
+  // Specify file patterns to be included in the TypeScript compilation
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.js",
+    "src/**/*.jsx",
+    "vite.config.ts",
+    "jest.config.ts"
+  ],
+
+  // Omit files and directories that should not be part of the compilation
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.spec.tsx",
+    "**/*.test.tsx"
+  ],
+
+  // Reference additional TypeScript configuration files when necessary
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
+}
