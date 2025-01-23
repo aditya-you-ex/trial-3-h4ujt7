@@ -1,0 +1,106 @@
+################################################################################
+# TaskStream AI CODEOWNERS File
+# ------------------------------------------------------------------------------
+# This file defines the code ownership rules for the TaskStream AI platform,
+# enforcing granular review requirements and security protocols. Each path
+# pattern is associated with one or more teams or individuals responsible for
+# reviewing and approving changes in that directory or file pattern.
+#
+# SCOPE:
+#   1) Ensures root-level changes are reviewed by lead architects.
+#   2) Enforces specialized reviews (backend, NLP, analytics, security, etc.).
+#   3) Implements mandatory security oversight on critical code paths.
+#   4) Aligns with the platform's RBAC + ABAC strategy for compliance.
+################################################################################
+
+################################################################################
+# 1) Root Level
+#    - Ensures that any root-level changes are subject to lead architect review
+#      for overall architectural consistency across the platform.
+################################################################################
+/* @taskstream/lead-architects
+
+################################################################################
+# 2) Backend Directory
+#    - Requires review by both the backend team and the security team to ensure
+#      proper implementation of logic and compliance with security protocols.
+################################################################################
+/src/backend/ @taskstream/backend-team @taskstream/security-team
+
+################################################################################
+# 3) NLP (Natural Language Processing) Components
+#    - NLP and ML features require specialized oversight by ML engineers and
+#      security team, given their complexity and potential data sensitivity.
+################################################################################
+/src/backend/nlp/ @taskstream/ml-engineers @taskstream/security-team
+
+################################################################################
+# 4) Analytics Services
+#    - The analytics team oversees data processing, metrics, and predictive
+#      modeling. Security team provides additional security checks.
+################################################################################
+/src/backend/services/analytics/ @taskstream/analytics-team @taskstream/security-team
+
+################################################################################
+# 5) Authentication Service
+#    - Critical for system security and identity management. Changes require
+#      sign-off from security team and lead architects to ensure compliance.
+################################################################################
+/src/backend/services/auth/ @taskstream/security-team @taskstream/lead-architects
+
+################################################################################
+# 6) Frontend Directory
+#    - Changes to UI, user interaction flows, and front-end security measures
+#      require review from the frontend team and the security team.
+################################################################################
+/src/web/ @taskstream/frontend-team @taskstream/security-team
+
+################################################################################
+# 7) Test Suite
+#    - The QA team oversees comprehensive test coverage and ensures adherence
+#      to quality assurance standards.
+################################################################################
+/src/test/ @taskstream/qa-team
+
+################################################################################
+# 8) Security Testing Suite
+#    - Security tests require both security and QA team approval, given the
+#      specialized nature of penetration and vulnerability checks.
+################################################################################
+/src/test/security/ @taskstream/security-team @taskstream/qa-team
+
+################################################################################
+# 9) Infrastructure Code
+#    - Changes to deployment, Terraform, orchestration scripts, or IaC require
+#      review by the DevOps team and the security team to maintain stability
+#      and compliance.
+################################################################################
+/infrastructure/ @taskstream/devops-team @taskstream/security-team
+
+################################################################################
+# 10) GitHub Workflows
+#    - The DevOps team manages CI/CD pipelines. Security team reviews ensure
+#      there are no exposed secrets or insecure automation logic.
+################################################################################
+/.github/workflows/ @taskstream/devops-team @taskstream/security-team
+
+################################################################################
+# 11) Security Configuration
+#    - Security configuration files define crucial encryption and authentication
+#      parameters. Both security team and lead architects validate changes.
+################################################################################
+/src/backend/config/security.ts @taskstream/security-team @taskstream/lead-architects
+
+################################################################################
+# 12) package.json
+#    - Changes to Node dependencies can introduce new vulnerabilities. Lead
+#      architects and security team jointly approve to mitigate risk.
+################################################################################
+package.json @taskstream/lead-architects @taskstream/security-team
+
+################################################################################
+# 13) requirements.txt
+#    - Python dependencies also require careful scrutiny by architects and the
+#      security team for potential vulnerabilities or license compliance.
+################################################################################
+requirements.txt @taskstream/lead-architects @taskstream/security-team
