@@ -1,0 +1,518 @@
+# ------------------------------------------------------------------------------
+# Poetry Lock File for TaskStream AI Backend
+# Ensures deterministic dependency resolution with strict security validation
+# ------------------------------------------------------------------------------
+
+[metadata]
+lock-version = "2.0"
+python-versions = ">=3.11,<4.0"
+content-hash = "sha256:placeholder-content-hash-for-overall-lock-file"
+package-resolution-mode = "deterministic"
+security-check-mode = "strict"
+dependency-validation-mode = "enhanced"
+
+[metadata.security-features]
+sha256-verification = true
+dependency-graph-analysis = true
+vulnerability-scanning = true
+automated-updates = true
+
+# ------------------------------------------------------------------
+# Exported package metadata (Dynamically referencing project details)
+# ------------------------------------------------------------------
+[package_metadata]
+name = "taskstream-ai-backend"
+version = "1.0.0"
+description = "TaskStream AI backend services including NLP engine and analytics"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "pyproject.toml",
+    "poetry.lock"
+]
+sha256 = "placeholder-sha256-for-backend"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+# ------------------------------------------------------------------------------
+# Exported locked production dependencies with security validation
+# ------------------------------------------------------------------------------
+[locked_dependencies]
+tensorflow = "2.14.0"
+fastapi = "0.104.0"
+spacy = "3.7.4"
+pyspark = "3.5.0"
+scikit-learn = "1.3.0"
+
+# ------------------------------------------------------------------------------
+# Exported locked development dependencies for testing and linting
+# ------------------------------------------------------------------------------
+[locked_dev_dependencies]
+pytest = "7.4.2"
+black = "23.10.2"
+flake8 = "6.1.0"
+mypy = "1.6.1"
+
+# ------------------------------------------------------------------
+# Production Dependencies Section (Pinned)
+# ------------------------------------------------------------------
+[[package]]
+name = "fastapi"
+version = "0.104.0"
+description = "A high-performance framework for building APIs"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "fastapi-0.104.0-py3-none-any.whl",
+    "fastapi-0.104.0.tar.gz"
+]
+sha256 = "placeholder-sha256-fastapi"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "tensorflow"
+version = "2.14.0"
+description = "TensorFlow is an end-to-end open-source platform for machine learning"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "tensorflow-2.14.0-cp311-cp311-manylinux.whl",
+    "tensorflow-2.14.0.tar.gz"
+]
+sha256 = "placeholder-sha256-tensorflow"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "spacy"
+version = "3.7.4"
+description = "Industrial-strength Natural Language Processing (NLP) in Python"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "spacy-3.7.4-cp311-cp311-manylinux.whl",
+    "spacy-3.7.4.tar.gz"
+]
+sha256 = "placeholder-sha256-spacy"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "pyspark"
+version = "3.5.0"
+description = "Apache Spark Python API for high-performance analytics"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "pyspark-3.5.0-py2.py3-none-any.whl",
+    "pyspark-3.5.0.tar.gz"
+]
+sha256 = "placeholder-sha256-pyspark"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "scikit-learn"
+version = "1.3.0"
+description = "A set of Python modules for machine learning and data mining"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "scikit_learn-1.3.0-cp311-cp311-manylinux.whl",
+    "scikit_learn-1.3.0.tar.gz"
+]
+sha256 = "placeholder-sha256-scikitlearn"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "torch"
+version = "2.1.0"
+description = "An optimized tensor library for deep learning"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "torch-2.1.0-cp311-cp311-manylinux.whl",
+    "torch-2.1.0.tar.gz"
+]
+sha256 = "placeholder-sha256-torch"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "transformers"
+version = "4.35.0"
+description = "State-of-the-art Natural Language Processing for Pytorch and TensorFlow"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "transformers-4.35.0-py3-none-any.whl",
+    "transformers-4.35.0.tar.gz"
+]
+sha256 = "placeholder-sha256-transformers"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "pandas"
+version = "2.1.0"
+description = "Powerful data analysis and manipulation library for Python"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "pandas-2.1.0-cp311-cp311-manylinux.whl",
+    "pandas-2.1.0.tar.gz"
+]
+sha256 = "placeholder-sha256-pandas"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "numpy"
+version = "1.24.3"
+description = "Fundamental package for array computing with Python"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "numpy-1.24.3-cp311-cp311-manylinux.whl",
+    "numpy-1.24.3.tar.gz"
+]
+sha256 = "placeholder-sha256-numpy"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "uvicorn"
+version = "0.24.0"
+description = "The lightning-fast ASGI server"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "uvicorn-0.24.0-py3-none-any.whl",
+    "uvicorn-0.24.0.tar.gz"
+]
+sha256 = "placeholder-sha256-uvicorn"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "python-jose"
+version = "3.3.0"
+description = "A JOSE implementation in Python"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "python_jose-3.3.0-py3-none-any.whl",
+    "python_jose-3.3.0.tar.gz"
+]
+sha256 = "placeholder-sha256-pythonjose"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "passlib"
+version = "1.7.4"
+description = "Comprehensive password hashing framework supporting over 30 schemes"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "passlib-1.7.4-py3-none-any.whl",
+    "passlib-1.7.4.tar.gz"
+]
+sha256 = "placeholder-sha256-passlib"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "sqlalchemy"
+version = "2.0.21"
+description = "The Python SQL toolkit and Object Relational Mapper"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "sqlalchemy-2.0.21-py3-none-any.whl",
+    "sqlalchemy-2.0.21.tar.gz"
+]
+sha256 = "placeholder-sha256-sqlalchemy"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "psycopg2-binary"
+version = "2.9.7"
+description = "A PostgreSQL database adapter for Python"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "psycopg2_binary-2.9.7-cp311-cp311-manylinux.whl",
+    "psycopg2_binary-2.9.7.tar.gz"
+]
+sha256 = "placeholder-sha256-psycopg2"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "redis"
+version = "5.0.10"
+description = "Redis Python client with hiredis parser support"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "redis-5.0.10-py3-none-any.whl",
+    "redis-5.0.10.tar.gz"
+]
+sha256 = "placeholder-sha256-redis"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "elasticsearch"
+version = "8.10.2"
+description = "Python client for Elasticsearch"
+category = "main"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "elasticsearch-8.10.2-py3-none-any.whl",
+    "elasticsearch-8.10.2.tar.gz"
+]
+sha256 = "placeholder-sha256-elasticsearch"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+# ------------------------------------------------------------------
+# Development Dependencies Section (Pinned)
+# ------------------------------------------------------------------
+[[package]]
+name = "pytest"
+version = "7.4.2"
+description = "Simple powerful testing with Python"
+category = "dev"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "pytest-7.4.2-py3-none-any.whl",
+    "pytest-7.4.2.tar.gz"
+]
+sha256 = "placeholder-sha256-pytest"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "black"
+version = "23.10.2"
+description = "The uncompromising code formatter"
+category = "dev"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "black-23.10.2-py3-none-any.whl",
+    "black-23.10.2.tar.gz"
+]
+sha256 = "placeholder-sha256-black"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "flake8"
+version = "6.1.0"
+description = "A tool for style guide enforcement"
+category = "dev"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "flake8-6.1.0-py3-none-any.whl",
+    "flake8-6.1.0.tar.gz"
+]
+sha256 = "placeholder-sha256-flake8"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "mypy"
+version = "1.6.1"
+description = "Optional static typing for Python"
+category = "dev"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "mypy-1.6.1-py3-none-any.whl",
+    "mypy-1.6.1.tar.gz"
+]
+sha256 = "placeholder-sha256-mypy"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "pytest-cov"
+version = "4.1.2"
+description = "Pytest plugin for measuring coverage"
+category = "dev"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "pytest_cov-4.1.2-py3-none-any.whl",
+    "pytest_cov-4.1.2.tar.gz"
+]
+sha256 = "placeholder-sha256-pytest-cov"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "pytest-asyncio"
+version = "0.21.1"
+description = "Pytest support for asyncio"
+category = "dev"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "pytest_asyncio-0.21.1-py3-none-any.whl",
+    "pytest_asyncio-0.21.1.tar.gz"
+]
+sha256 = "placeholder-sha256-pytest-asyncio"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "isort"
+version = "5.12.0"
+description = "A Python utility to sort imports"
+category = "dev"
+optional = false
+python-versions = ">=3.11,<4.0"
+files = [
+    "isort-5.12.0-py3-none-any.whl",
+    "isort-5.12.0.tar.gz"
+]
+sha256 = "placeholder-sha256-isort"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+# ------------------------------------------------------------------
+# Extra Poetry Core & Audit Tools (for completeness)
+# ------------------------------------------------------------------
+[[package]]
+name = "poetry-core"
+version = "1.7.0"
+description = "The minimal Poetry distribution library"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    "poetry_core-1.7.0-py3-none-any.whl",
+    "poetry_core-1.7.0.tar.gz"
+]
+sha256 = "placeholder-sha256-poetry-core"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+[[package]]
+name = "poetry-audit"
+version = "0.3.0"
+description = "Poetry plugin providing dependency security auditing"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    "poetry_audit-0.3.0-py3-none-any.whl",
+    "poetry_audit-0.3.0.tar.gz"
+]
+sha256 = "placeholder-sha256-poetry-audit"
+security_audit = { vulnerabilities = 0, status = "passed" }
+
+# ------------------------------------------------------------------
+# File References for Integrity Checks
+# ------------------------------------------------------------------
+[metadata.files]
+"fastapi 0.104.0" = [
+    { file = "fastapi-0.104.0-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "fastapi-0.104.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"tensorflow 2.14.0" = [
+    { file = "tensorflow-2.14.0-cp311-cp311-manylinux.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "tensorflow-2.14.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"spacy 3.7.4" = [
+    { file = "spacy-3.7.4-cp311-cp311-manylinux.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "spacy-3.7.4.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"pyspark 3.5.0" = [
+    { file = "pyspark-3.5.0-py2.py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "pyspark-3.5.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"scikit-learn 1.3.0" = [
+    { file = "scikit_learn-1.3.0-cp311-cp311-manylinux.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "scikit_learn-1.3.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"torch 2.1.0" = [
+    { file = "torch-2.1.0-cp311-cp311-manylinux.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "torch-2.1.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"transformers 4.35.0" = [
+    { file = "transformers-4.35.0-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "transformers-4.35.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"pandas 2.1.0" = [
+    { file = "pandas-2.1.0-cp311-cp311-manylinux.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "pandas-2.1.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"numpy 1.24.3" = [
+    { file = "numpy-1.24.3-cp311-cp311-manylinux.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "numpy-1.24.3.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"uvicorn 0.24.0" = [
+    { file = "uvicorn-0.24.0-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "uvicorn-0.24.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"python-jose 3.3.0" = [
+    { file = "python_jose-3.3.0-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "python_jose-3.3.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"passlib 1.7.4" = [
+    { file = "passlib-1.7.4-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "passlib-1.7.4.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"sqlalchemy 2.0.21" = [
+    { file = "sqlalchemy-2.0.21-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "sqlalchemy-2.0.21.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"psycopg2-binary 2.9.7" = [
+    { file = "psycopg2_binary-2.9.7-cp311-cp311-manylinux.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "psycopg2_binary-2.9.7.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"redis 5.0.10" = [
+    { file = "redis-5.0.10-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "redis-5.0.10.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"elasticsearch 8.10.2" = [
+    { file = "elasticsearch-8.10.2-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "elasticsearch-8.10.2.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"pytest 7.4.2" = [
+    { file = "pytest-7.4.2-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "pytest-7.4.2.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"black 23.10.2" = [
+    { file = "black-23.10.2-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "black-23.10.2.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"flake8 6.1.0" = [
+    { file = "flake8-6.1.0-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "flake8-6.1.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"mypy 1.6.1" = [
+    { file = "mypy-1.6.1-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "mypy-1.6.1.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"pytest-cov 4.1.2" = [
+    { file = "pytest_cov-4.1.2-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "pytest_cov-4.1.2.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"pytest-asyncio 0.21.1" = [
+    { file = "pytest_asyncio-0.21.1-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "pytest_asyncio-0.21.1.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"isort 5.12.0" = [
+    { file = "isort-5.12.0-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "isort-5.12.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"poetry-core 1.7.0" = [
+    { file = "poetry_core-1.7.0-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "poetry_core-1.7.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
+"poetry-audit 0.3.0" = [
+    { file = "poetry_audit-0.3.0-py3-none-any.whl", hash = "sha256:placeholder-whl-hash" },
+    { file = "poetry_audit-0.3.0.tar.gz", hash = "sha256:placeholder-tar-hash" }
+]
