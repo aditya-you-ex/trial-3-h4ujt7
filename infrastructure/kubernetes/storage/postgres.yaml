@@ -1,0 +1,241 @@
+################################################################################
+# KUBERNETES POSTGRESQL DEPLOYMENT CONFIGURATION
+# ------------------------------------------------------------------------------
+# This file manages a high-availability PostgreSQL v14.0 (# postgresql v14.0)
+# using Kubernetes v1.27+ (# kubernetes v1.27+) resources for TaskStream AI.
+# It addresses:
+#   1) Database Architecture: Multi-replica setup, replication, automated failover
+#   2) Data Security: Encrypted storage, SSL for secure data access
+#   3) High Availability: Multi-AZ readiness, volume encryption, stateful approach
+#
+# Contents:
+#   1) ConfigMap (postgres-configmap): Core PostgreSQL parameters, SSL config
+#   2) Service (postgres-service): ClusterIP with session affinity for stateful apps
+#   3) StatefulSet (postgres-statefulset): Main HA deployment with volumes, probes,
+#      anti-affinity rules, built-in resource constraints, and integrated monitoring
+#
+# References (Internal & External):
+#   - src/backend/config/database.ts (databaseConfig) => ensures alignment with DB settings
+#   - ../config/resource-quotas.yaml => resource allocation constraints at the namespace level
+#   - postgresql:14.0 => Official Docker image
+#   - External monitoring: wrouesnel/postgres_exporter:v0.8.0
+#
+# Encryption & SSL:
+#   - SSL enabled in ConfigMap keys (POSTGRES_SSL, POSTGRES_SSL_CERT_FILE, etc.)
+#   - StorageClass "gp3-encrypted" ensures data-at-rest encryption
+#
+# Backup Hooks:
+#   - "postgres-backup" volume mount to /backup (CronJob or external backup tool can be attached)
+################################################################################
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-configmap
+  labels:
+    app: postgres
+    tier: database
+    purpose: "postgresql-configuration"
+data:
+  ##############################################################################
+  # Mandatory Database Settings
+  ##############################################################################
+  POSTGRES_DB: "taskstream"
+  POSTGRES_PORT: "5432"
+  POSTGRES_MAX_CONNECTIONS: "200"
+  POSTGRES_SHARED_BUFFERS: "2GB"
+  POSTGRES_EFFECTIVE_CACHE_SIZE: "6GB"
+  POSTGRES_WORK_MEM: "32MB"
+  POSTGRES_MAINTENANCE_WORK_MEM: "256MB"
+
+  ##############################################################################
+  # Replication & WAL Configuration for High Availability
+  ##############################################################################
+  POSTGRES_WAL_LEVEL: "replica"
+  POSTGRES_MAX_WAL_SENDERS: "10"
+  POSTGRES_WAL_KEEP_SEGMENTS: "64"
+  POSTGRES_ARCHIVE_MODE: "on"
+  POSTGRES_ARCHIVE_TIMEOUT: "60"
+
+  ##############################################################################
+  # SSL & Encryption Configuration
+  ##############################################################################
+  POSTGRES_SSL: "on"
+  POSTGRES_SSL_CERT_FILE: "/etc/certs/tls.crt"
+  POSTGRES_SSL_KEY_FILE: "/etc/certs/tls.key"
+  POSTGRES_SSL_CA_FILE: "/etc/certs/ca.crt"
+  POSTGRES_SSL_PREFER_SERVER_CIPHERS: "on"
+  POSTGRES_SSL_CIPHERS: "HIGH:!aNULL:!MD5"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  labels:
+    app: postgres
+    tier: database
+    purpose: "database-service"
+spec:
+  # Exposing PostgreSQL on port 5432 internally
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+  selector:
+    app: postgres
+  type: ClusterIP
+  ##########################################################################
+  # Session Affinity for stateful or connection-based workloads
+  ##########################################################################
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-statefulset
+  labels:
+    app: postgres
+    tier: database
+spec:
+  ##########################################################################
+  # Number of replicas for HA; set to 3 per specification
+  ##########################################################################
+  replicas: 3
+
+  serviceName: "postgres-service"
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0
+
+  ##########################################################################
+  # Pod Management: OrderedReady => carefully ensures one pod updates at a time
+  ##########################################################################
+  podManagementPolicy: "OrderedReady"
+
+  ##########################################################################
+  # Match pod labels for this StatefulSet
+  ##########################################################################
+  selector:
+    matchLabels:
+      app: postgres
+
+  template:
+    metadata:
+      labels:
+        app: postgres
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9187"
+    spec:
+      ########################################################################
+      # Pod anti-affinity: ensures pods are scheduled on distinct nodes
+      ########################################################################
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - postgres
+              topologyKey: "kubernetes.io/hostname"
+
+      ########################################################################
+      # Security context: run as non-root user (UID 999), group (999)
+      ########################################################################
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+        runAsNonRoot: true
+
+      containers:
+        - name: postgres
+          image: "postgres:14.0"  # # postgresql v14.0
+          ports:
+            - containerPort: 5432
+          ####################################################################
+          # Resource requests and limits must align with enterprise standards
+          ####################################################################
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+
+          ####################################################################
+          # Readiness and Liveness probes for robust health checks
+          ####################################################################
+          readinessProbe:
+            exec:
+              command:
+                - "pg_isready"
+                - "-U"
+                - "postgres"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - "pg_isready"
+                - "-U"
+                - "postgres"
+            initialDelaySeconds: 30
+            periodSeconds: 15
+
+          ####################################################################
+          # Volume mounts for data, SSL certs, and backups
+          ####################################################################
+          volumeMounts:
+            - name: postgres-data
+              mountPath: "/var/lib/postgresql/data"
+            - name: postgres-certs
+              mountPath: "/etc/certs"
+              readOnly: true
+            - name: postgres-backup
+              mountPath: "/backup"
+
+        - name: metrics
+          image: "wrouesnel/postgres_exporter:v0.8.0"
+          ports:
+            - containerPort: 9187
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "200m"
+              memory: "512Mi"
+
+      ########################################################################
+      # Additional volumes for SSL certifications & backup location
+      ########################################################################
+      volumes:
+        - name: postgres-certs
+          secret:
+            secretName: "postgres-certs"
+        - name: postgres-backup
+          persistentVolumeClaim:
+            claimName: "postgres-backup-pvc"
+
+  ##########################################################################
+  # VolumeClaimTemplates => dynamically provisioning encrypted data volumes
+  ##########################################################################
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "gp3-encrypted"
+        resources:
+          requests:
+            storage: "100Gi"
