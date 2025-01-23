@@ -1,0 +1,96 @@
+# =============================================================================
+# KUBERNETES HORIZONTAL POD AUTOSCALER (HPA) - TASKSTREAM WEB FRONTEND
+# -----------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This file defines the HPA resource that automatically scales the TaskStream
+#   AI web frontend pods based on CPU utilization metrics, leveraging the
+#   "metrics.k8s.io/v2" API provided by the Metrics Server (imported via
+#   ../config/metrics-server.yaml).
+#
+# REQUIREMENTS ADDRESSED (FROM JSON SPECIFICATION & TECH SPECS):
+# 1) Frontend Scaling (Tech Specs/8.4 - Orchestration):
+#    - Autoscaling from a minimum of 3 replicas up to a maximum of 10,
+#      targeting 70% average CPU utilization.
+# 2) Resource Optimization (Tech Specs/1.2 - Success Criteria):
+#    - Achieve ~40% improved resource utilization via dynamic CPU-based scaling.
+# 3) High Availability (Tech Specs/8.1 - Deployment Environment):
+#    - Maintain at least 3 replicas for multi-zone redundancy and meet the
+#      99.9% uptime SLA with rapid scaling on sustained CPU load.
+# 4) System Reliability (Tech Specs/1.2 - Success Criteria):
+#    - Stabilization windows set for both scale-up (60s) and scale-down (300s)
+#      to avoid thrashing and ensure consistent performance.
+
+# INTERNAL IMPORTS:
+#   - metrics-server.yaml:
+#       Provides the Resource metrics API (metrics.k8s.io/v2) for CPU measurement.
+#   - resource-quotas.yaml:
+#       Governs resource usage (CPU, memory) to ensure we stay within the
+#       allocated compute resources for the "taskstream" namespace.
+
+# ADDITIONAL IMPLEMENTATION NOTES:
+#   - The scaleUp policy allows adding up to 2 pods per 60-second interval,
+#     enabling swift reaction to surges.
+#   - The scaleDown policy removes 1 pod per 60-second interval after a 5-minute
+#     stabilization, avoiding rapid oscillations.
+#   - The annotations facilitate external monitoring integrations to alert or
+#     visualize scaling events in near real-time.
+
+# =============================================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: taskstream-web
+  namespace: taskstream
+  labels:
+    app: taskstream-web
+    tier: frontend
+    component: web
+    part-of: taskstream
+    environment: production
+    managed-by: kubernetes
+    version: v1
+  annotations:
+    monitoring.taskstream.ai/scaling-enabled: "true"
+    monitoring.taskstream.ai/alert-threshold: "cpu-70"
+    monitoring.taskstream.ai/scale-up-alert: "true"
+    monitoring.taskstream.ai/scale-down-alert: "true"
+    kubernetes.io/description: "HPA for TaskStream web frontend"
+spec:
+  # Associates this HPA with the 'taskstream-web' Deployment (apps/v1)
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: taskstream-web
+
+  # Minimum of 3 pods (ensuring high availability) and a maximum of 10 pods
+  # (balancing cost vs. performance).
+  minReplicas: 3
+  maxReplicas: 10
+
+  # Target CPU utilization set to 70%. The Metrics Server references
+  # average CPU usage across pods (avg utilization).
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+  # 'behavior' config stipulates how quickly we can scale up/down to
+  # maintain stability and meet performance goals.
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60  # 1-minute stabilization to confirm sustained load
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60  # Add up to 2 pods per 60-second interval
+      selectPolicy: Max       # Use the policy that results in the largest scale up
+    scaleDown:
+      stabilizationWindowSeconds: 300 # 5-minute window to avoid thrashing
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60  # Remove at most 1 pod per 60-second interval
+      selectPolicy: Min       # Use the policy that results in the smallest scale down
