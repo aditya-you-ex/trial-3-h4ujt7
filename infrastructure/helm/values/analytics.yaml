@@ -1,0 +1,353 @@
+###############################################################################
+# HELM VALUES CONFIGURATION FILE FOR TASKSTREAM AI ANALYTICS SERVICE
+# ---------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This Helm values file defines configuration parameters for the
+#   "analytics-service" microservice, addressing the following:
+#     1) Enhanced monitoring and metrics collection (System Monitoring).
+#     2) Reliability requirements meeting 99.9% uptime (Deployment & Probes).
+#     3) Resource optimization through Horizontal Pod Autoscaling (HPA).
+#     4) Security best practices, including container/pod security contexts.
+#     5) Compatibility with cross-cutting enterprise considerations:
+#        - Pod Disruption Budgets
+#        - Node tolerations and affinity
+#        - Rolling update strategy
+#
+# REFERENCES TO INTERNAL IMPORTS:
+#   - deployment.yaml (Deployment):
+#       * spec.replicas (maps to .Values.replicaCount)
+#       * .spec.template.spec.containers[...] (image & resource usage)
+#   - service.yaml (Service):
+#       * Exposes ports (8000 for API, 9090 for metrics)
+#   - hpa.yaml (HorizontalPodAutoscaler):
+#       * minReplicas=3, maxReplicas=10
+#       * CPU target=70%, Memory target=80%
+#       * scaleUp/scaleDown behaviors
+#
+# EXTERNAL LIBRARIES (WITH VERSIONS):
+#   1) python@3.11-slim
+#      - Base container image for analytics processing (ML, Spark, scikit-learn).
+#   2) prometheus-client@0.17.0
+#      - Python library for metrics exposition (scraped on port 9090).
+#
+# GLOBALS FROM JSON SPEC:
+#   - NAMESPACE: "taskstream-analytics"
+#   - APP_LABEL: "analytics-service"
+#   - MONITORING_ENABLED: "true"
+#
+# EXPORTS (AS DESCRIBED IN JSON SPEC):
+#   - This file includes an "exports.analytics-values" section to expose
+#     major configuration blocks (image, service, autoscaling, probes,
+#     securityContext) for referencing in sub-charts or external templates.
+#
+###############################################################################
+
+################################################################################
+# CHART METADATA OVERRIDES
+################################################################################
+# nameOverride:     Short, friendly name for the chart.
+# fullnameOverride: Full resource name used in metadata, deployments, etc.
+################################################################################
+nameOverride: analytics
+fullnameOverride: analytics-service
+
+################################################################################
+# IMAGE CONFIGURATION
+################################################################################
+# image.repository   => The Docker image repository for analytics-service.
+# image.tag          => The Docker image tag.
+# image.pullPolicy   => Defines when Kubernetes should pull the image.
+################################################################################
+image:
+  repository: "taskstream/analytics-service"
+  tag: "latest"
+  pullPolicy: "Always"
+
+################################################################################
+# REPLICA COUNT
+################################################################################
+# replicaCount => The default number of pod replicas for the analytics service.
+#                This aligns with the "spec.replicas" in the deployment.yaml
+#                internal import.
+################################################################################
+replicaCount: 3
+
+################################################################################
+# SERVICE CONFIGURATION
+################################################################################
+# type   => The Kubernetes Service type (ClusterIP, NodePort, LoadBalancer, etc.).
+# ports  => Key-value pairs for different exposed ports:
+#             http    => The REST/HTTP API port for analytics requests (8000).
+#             metrics => The metrics endpoint for Prometheus (9090).
+#             debug   => Optional debug port (5678).
+################################################################################
+service:
+  type: ClusterIP
+  ports:
+    http: 8000
+    metrics: 9090
+    debug: 5678
+
+################################################################################
+# RESOURCE LIMITS AND REQUESTS
+################################################################################
+# resources.requests => Guaranteed minimum CPU/Memory to schedule the pod.
+# resources.limits   => Hard cap on CPU/Memory usage to prevent resource hogging.
+################################################################################
+resources:
+  requests:
+    cpu: "1000m"
+    memory: "2Gi"
+  limits:
+    cpu: "2000m"
+    memory: "4Gi"
+
+################################################################################
+# AUTOSCALING CONFIGURATION (HPA)
+################################################################################
+# enabled     => If true, enable Horizontal Pod Autoscaling for analytics.
+# minReplicas => Minimum number of replicas to maintain (default=3).
+# maxReplicas => Maximum number of replicas allowed (default=10).
+# targetCPUUtilizationPercentage    => CPU usage threshold (%) to trigger scale.
+# targetMemoryUtilizationPercentage => Memory usage threshold (%) to trigger scale.
+# behavior => Fine-grained scaling behavior to prevent flapping or sudden swings:
+#   scaleUp:
+#     stabilizationWindowSeconds => Time to wait before scaling up further.
+#     policies => an array of scale policies, e.g. { type: "Pods", value: 2 }.
+#   scaleDown:
+#     stabilizationWindowSeconds => Time to wait before scaling down further.
+#     policies => an array of scale policies, e.g. { type: "Pods", value: 1 }.
+################################################################################
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+
+################################################################################
+# PROBES CONFIGURATION
+################################################################################
+# startup   => Checks container readiness upon initial startup (/startup path).
+# liveness  => Checks container health to restart if unresponsive (/health path).
+# readiness => Checks container availability to serve traffic (/ready path).
+################################################################################
+probes:
+  startup:
+    httpGet:
+      path: /startup
+      port: 8000
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    failureThreshold: 30
+
+  liveness:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readiness:
+    httpGet:
+      path: /ready
+      port: 8000
+    initialDelaySeconds: 15
+    periodSeconds: 5
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 3
+
+################################################################################
+# SECURITY CONTEXT AT CONTAINER LEVEL
+################################################################################
+# runAsNonRoot, runAsUser, runAsGroup => Ensures container does not run as root.
+# fsGroup => Group ownership for mounted volumes.
+# allowPrivilegeEscalation => Additional security measure to bind no escalations.
+# capabilities => Requires dropping all capabilities for safer operation.
+# seccompProfile => "RuntimeDefault" for minimal kernel attack surface.
+################################################################################
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+################################################################################
+# POD SECURITY CONTEXT
+################################################################################
+# Usually applied at the pod level for consistent user/group settings and FS group.
+################################################################################
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+################################################################################
+# POD ANNOTATIONS
+################################################################################
+# Additional annotations specifically for Prometheus scraping or cluster autoscalers.
+################################################################################
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+  cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+
+################################################################################
+# UPDATE STRATEGY
+################################################################################
+# Specifies how updates roll out to pods, controlling concurrency and downtime.
+# RollingUpdate => progressive update with zero downtime if maxUnavailable=0.
+################################################################################
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+################################################################################
+# POD DISRUPTION BUDGET (PDB)
+################################################################################
+# Helps maintain a certain number/percentage of pods during voluntary disruptions
+# such as node draining or cluster maintenance. "minAvailable: 2" ensures at least
+# two pods remain operational.
+################################################################################
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+################################################################################
+# NODE SELECTOR
+################################################################################
+# nodeSelector => Maps pods to only run on nodes matching these labels.
+# For example, "kubernetes.io/role: analytics" ensures scheduling on analytics nodes.
+################################################################################
+nodeSelector:
+  kubernetes.io/role: analytics
+
+################################################################################
+# TOLERATIONS
+################################################################################
+# Tolerations => Permits (or "tolerates") pods to schedule onto nodes with
+# specific taints, e.g., "NoSchedule" for analytics= true.
+################################################################################
+tolerations:
+  - key: "analytics"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
+
+################################################################################
+# AFFINITY
+################################################################################
+# Affinity => Fine-grained scheduling rules. "podAntiAffinity" ensures pods do not
+# run on the same node, improving reliability by distributing workloads.
+################################################################################
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - topologyKey: "kubernetes.io/hostname"
+        labelSelector:
+          matchLabels:
+            app: "analytics-service"
+
+################################################################################
+# EXPORTS SECTION
+################################################################################
+# Exposes named configuration blocks for other Helm charts or external references.
+# "analytics-values" surfaces the same objects defined above (image, service,
+# autoscaling, probes, securityContext) to be imported or read by sub-charts.
+################################################################################
+exports:
+  analytics-values:
+    image:
+      repository: "taskstream/analytics-service"
+      tag: "latest"
+      pullPolicy: "Always"
+
+    service:
+      type: "ClusterIP"
+      ports:
+        http: 8000
+        metrics: 9090
+        debug: 5678
+
+    autoscaling:
+      enabled: true
+      minReplicas: 3
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 80
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 300
+          policies:
+            - type: Pods
+              value: 2
+              periodSeconds: 60
+        scaleDown:
+          stabilizationWindowSeconds: 600
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 120
+
+    probes:
+      startup:
+        httpGet:
+          path: /startup
+          port: 8000
+        initialDelaySeconds: 20
+        periodSeconds: 10
+        failureThreshold: 30
+      liveness:
+        httpGet:
+          path: /health
+          port: 8000
+        initialDelaySeconds: 30
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 3
+      readiness:
+        httpGet:
+          path: /ready
+          port: 8000
+        initialDelaySeconds: 15
+        periodSeconds: 5
+        timeoutSeconds: 3
+        successThreshold: 1
+        failureThreshold: 3
+
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      seccompProfile:
+        type: RuntimeDefault
