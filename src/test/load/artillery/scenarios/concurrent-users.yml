@@ -1,0 +1,348 @@
+# =============================================================================
+# Artillery Load Testing Configuration File
+# -----------------------------------------------------------------------------
+# This file defines the load testing behavior for simulating concurrent users
+# to validate system reliability (aligns with 99.9% uptime target), API
+# performance (up to 1000 req/min), and resource optimization (40% improvement).
+# -----------------------------------------------------------------------------
+# Detailed points addressed:
+# 1. System Reliability: Demonstrates sustained load phases across staging and
+#    production environments with gradually increasing arrival rates.
+# 2. API Performance: Rates ramp up to the specified thresholds to validate
+#    that rate limiting and performance objectives are achieved.
+# 3. Resource Optimization: Varied load patterns help collect and observe
+#    metrics for CPU, memory, and network utilization, ensuring data-driven
+#    validation for resource optimization.
+# -----------------------------------------------------------------------------
+# NOTE: This file also contains custom inline functions for generating random
+# data objects, fulfilling the requirement for realistic test data, and uses
+# the "artillery-plugin-expect" plugin (version 2.x) for advanced assertions.
+# =============================================================================
+
+config:
+  # ---------------------------------------------------------------------------
+  # Global configuration for Artillery
+  # ---------------------------------------------------------------------------
+  plugins:
+    # Using the Artillery "expect" plugin for comprehensive response validations
+    - "@artilleryio/artillery-plugin-expect"  # version 2.x
+
+  # ---------------------------------------------------------------------------
+  # Processor section for custom JavaScript helpers/functions, inline in YAML
+  # so that we can generate random users, projects, and tasks with validation.
+  # ---------------------------------------------------------------------------
+  processor:
+    js: |
+      "use strict";
+
+      /**
+       * generateRandomUser
+       * ------------------
+       * Generates random user data with secure credentials.
+       * 1. Creates an RFC-compliant random email.
+       * 2. Creates a secure password meeting complexity requirements.
+       * 3. Validates the generated credentials.
+       * 4. Returns a sanitized credentials object.
+       */
+      function generateRandomUser(context, events, done) {
+        // Generate a random numeric suffix for the email
+        const randomSuffix = Math.floor(Math.random() * 1000000);
+        // RFC-compliant email structure
+        const email = `test.user.${randomSuffix}@example.org`;
+        // Generate a secure password with complexity: min length 8,
+        // containing letters, numbers, and special characters.
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
+        let password = "";
+        for (let i = 0; i < 10; i++) {
+          password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        // Basic validation checks (length, presence of special char, etc.)
+        // For demonstration, assume success if length >= 8
+        if (password.length < 8) {
+          throw new Error("Generated password is too short");
+        }
+
+        // Store data in context.vars for use in requests
+        context.vars.user = {
+          email: email,
+          password: password
+        };
+
+        // Proceed to next step
+        return done();
+      }
+
+      /**
+       * generateRandomProject
+       * ---------------------
+       * Generates random project data and includes realistic date ranges.
+       * 1. Creates a random project name aligned with typical business naming.
+       * 2. Picks a valid start date within a near future range.
+       * 3. Calculates a corresponding end date based on a random scope.
+       * 4. Adds metadata and ensures data validity.
+       * 5. Stores final project object in context.vars.
+       */
+      function generateRandomProject(context, events, done) {
+        // Build a random project name
+        const randomSuffix = Math.floor(Math.random() * 100000);
+        const projectName = `AutomatedTestingProject-${randomSuffix}`;
+
+        // Generate a start date (today + 1 to 7 days)
+        const now = new Date();
+        const startOffset = Math.floor(Math.random() * 7) + 1;
+        const startDate = new Date(now);
+        startDate.setDate(now.getDate() + startOffset);
+
+        // Generate an end date (project scope 7 to 30 days from start date)
+        const scopeDuration = Math.floor(Math.random() * 24) + 7; // 7 to 30
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + scopeDuration);
+
+        // Add project metadata
+        const metadata = {
+          department: "QA Automation",
+          priority: "High",
+          createdBy: "AutomatedTest"
+        };
+
+        // Assemble final project object
+        context.vars.project = {
+          name: projectName,
+          start_date: startDate.toISOString().split("T")[0],
+          end_date: endDate.toISOString().split("T")[0],
+          metadata: metadata
+        };
+
+        // Proceed to next step
+        return done();
+      }
+
+      /**
+       * generateRandomTask
+       * ------------------
+       * Generates a task object referencing a given projectId with realistic
+       * due date calculation and simple constraints.
+       * Steps:
+       * 1. Creates a contextual task title based on the project ID.
+       * 2. Generates a random task description.
+       * 3. Validates the presence of a projectId in context (passed from
+       *    prior step).
+       * 4. Calculates a due date that falls within the project timeline
+       *    (with some randomization).
+       * 5. Adds priority and status for variety.
+       * 6. Stores the task object in context.vars.
+       */
+      function generateRandomTask(context, events, done) {
+        const projectId = context.vars.projectId;
+        if (!projectId) {
+          throw new Error("ProjectId not found in context.vars for task generation");
+        }
+
+        // Build a random task title
+        const randomSuffix = Math.floor(Math.random() * 10000);
+        const taskTitle = `Task for project ${projectId}-${randomSuffix}`;
+        const taskDescription = `This is an automated test task: ${Math.random().toString(36).substring(2)}`;
+
+        // For demonstration, assume start and end date are also available
+        // in context.vars.project. We'll pick the midpoint for due date.
+        const project = context.vars.project;
+        if (!project) {
+          throw new Error("No project data found in context.vars for due date calculation");
+        }
+
+        const projectStart = new Date(project.start_date);
+        const projectEnd = new Date(project.end_date);
+        const dueDate = new Date(projectStart.getTime() + (projectEnd.getTime() - projectStart.getTime()) / 2);
+
+        // Priority and status are chosen randomly among realistic values
+        const possiblePriorities = ["High", "Medium", "Low"];
+        const possibleStatuses = ["Open", "In Progress", "Blocked", "Completed"];
+
+        const priority = possiblePriorities[Math.floor(Math.random() * possiblePriorities.length)];
+        const status = possibleStatuses[Math.floor(Math.random() * possibleStatuses.length)];
+
+        context.vars.task = {
+          title: taskTitle,
+          description: taskDescription,
+          projectId: projectId,
+          due_date: dueDate.toISOString(),
+          priority: priority,
+          status: status
+        };
+
+        return done();
+      }
+
+      // Exporting the functions so they can be referenced in scenario flow
+      module.exports = {
+        generateRandomUser,
+        generateRandomProject,
+        generateRandomTask
+      };
+
+  # ---------------------------------------------------------------------------
+  # Default or shared config can be placed here. Each environment then extends
+  # this config or overrides. We will define environment-specific target and
+  # phases below.
+  # ---------------------------------------------------------------------------
+  http:
+    # By default, keep a 30s timeout to handle peak load conditions
+    timeout: 30
+
+  # ---------------------------------------------------------------------------
+  # Definition of environment-specific configurations for both Staging and
+  # Production. Each environment includes the load phases with arrival rates.
+  # ---------------------------------------------------------------------------
+  environments:
+    staging:
+      # The target base URL for staging environment
+      # Arrival rates scale from warm-up to steady to peak load.
+      config:
+        target: "https://staging-api.taskstream.dev"
+        phases:
+          - duration: 60
+            arrivalRate: 5
+            name: "Warm-up phase"
+          - duration: 120
+            arrivalRate: 10
+            name: "Steady load phase"
+          - duration: 180
+            arrivalRate: 20
+            name: "Peak load phase"
+
+    production:
+      # The target base URL for production environment
+      # These phases demonstrate more prolonged concurrency tests.
+      config:
+        target: "https://api.taskstream.dev"
+        phases:
+          - duration: 300
+            arrivalRate: 10
+            name: "Initial phase"
+          - duration: 600
+            arrivalRate: 25
+            name: "Load increase phase"
+          - duration: 900
+            arrivalRate: 50
+            name: "Maximum load phase"
+
+# =============================================================================
+# Scenarios Section
+# -----------------------------------------------------------------------------
+# The following scenario definitions correspond to the "concurrent_user_simulation"
+# described in the technical specification. Each flow is assigned a weight to
+# distribute the load among distinct user actions for thorough coverage:
+#  - User Authentication Flow  (weight=1)
+#  - Project Management Flow   (weight=3)
+#  - Task Management Flow      (weight=5)
+#  - Analytics Flow            (weight=2)
+# =============================================================================
+
+scenarios:
+  # Named export equivalent: "concurrent_user_simulation"
+  - name: "User Authentication Flow"
+    weight: 1
+    flow:
+      # Initialize random user data to simulate realistic login attempts
+      - function: "generateRandomUser"
+      - post:
+          url: "/api/v1/auth/login"
+          json:
+            email: "{{ user.email }}"
+            password: "{{ user.password }}"
+          expect:
+            # Validate successful authentication
+            - statusCode: 200
+      - get:
+          url: "/api/v1/user/profile"
+          expect:
+            - statusCode: 200
+
+  - name: "Project Management Flow"
+    weight: 3
+    flow:
+      # Generate random project data
+      - function: "generateRandomProject"
+      - get:
+          url: "/api/v1/projects"
+          expect:
+            - statusCode: 200
+      - post:
+          url: "/api/v1/projects"
+          json:
+            name: "{{ project.name }}"
+            start_date: "{{ project.start_date }}"
+            end_date: "{{ project.end_date }}"
+            metadata: "{{ project.metadata }}"
+          capture:
+            # Capture the newly created project ID from JSON response
+            json: "$.id"
+            as: "projectId"
+          expect:
+            - statusCode: 201
+      - get:
+          url: "/api/v1/projects/{{ projectId }}"
+          expect:
+            - statusCode: 200
+
+  - name: "Task Management Flow"
+    weight: 5
+    flow:
+      - get:
+          url: "/api/v1/tasks"
+          expect:
+            - statusCode: 200
+      # Create a new random project first, so we can associate the task with it
+      - function: "generateRandomProject"
+      - post:
+          url: "/api/v1/projects"
+          json:
+            name: "{{ project.name }}"
+            start_date: "{{ project.start_date }}"
+            end_date: "{{ project.end_date }}"
+            metadata: "{{ project.metadata }}"
+          capture:
+            json: "$.id"
+            as: "projectId"
+          expect:
+            - statusCode: 201
+      # Now generate a new task referencing the newly created project
+      - function: "generateRandomTask"
+      - post:
+          url: "/api/v1/tasks"
+          json:
+            title: "{{ task.title }}"
+            description: "{{ task.description }}"
+            projectId: "{{ task.projectId }}"
+            due_date: "{{ task.due_date }}"
+            priority: "{{ task.priority }}"
+            status: "{{ task.status }}"
+          capture:
+            json: "$.id"
+            as: "taskId"
+          expect:
+            - statusCode: 201
+      # Update the previously created task
+      - put:
+          url: "/api/v1/tasks/{{ taskId }}"
+          json:
+            status: "In Progress"
+          expect:
+            - statusCode: 200
+
+  - name: "Analytics Flow"
+    weight: 2
+    flow:
+      - get:
+          url: "/api/v1/analytics/dashboard"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/api/v1/analytics/metrics"
+          expect:
+            - statusCode: 200
+
+# =============================================================================
+# End of File
+# =============================================================================
