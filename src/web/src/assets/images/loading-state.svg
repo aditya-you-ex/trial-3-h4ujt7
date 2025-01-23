@@ -1,0 +1,122 @@
+<!-- 
+  Enterprise-Grade Loading Indicator SVG
+  -------------------------------------------------------------------------
+  This SVG file implements a GPU-accelerated loading animation in compliance
+  with TaskStream AI's design system and the technical specifications.
+
+  KEY REQUIREMENTS & FEATURES:
+    • Dimensions:
+      - width: 240px
+      - height: 240px
+      - viewBox: 0 0 240 240
+    • Colors (Design Tokens):
+      - Primary: #2563EB
+      - Secondary: #64748B
+    • Animation:
+      - Type: Spin
+      - Duration: 1s
+      - Timing: Linear
+      - Iteration: Infinite
+      - Respects prefers-reduced-motion (disables animation if reduced)
+    • Accessibility:
+      - role="img"
+      - aria-label="Loading indicator"
+      - Purpose: Decorative, but includes descriptive labeling for screen readers
+    • Performance & Optimization:
+      - Minified structure with minimal paths
+      - Compressed where possible
+      - GPU-accelerated transformations
+    • Contextual Usage:
+      - Data fetching, form submissions, page transitions, and content loading
+      - Consumed by LoadingSpinner and LoadingState components
+    • Browser Support:
+      - Chrome 49+, Firefox 53+, Safari 10+, Edge 79+
+-->
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-label="Loading indicator"
+  width="240"
+  height="240"
+  viewBox="0 0 240 240"
+>
+  <!-- 
+    Title & Description:
+    For accessible SVGs, providing a <title> and <desc> helps screen readers
+    identify and describe the graphic. This maintains ARIA best practices.
+  -->
+  <title>Loading indicator</title>
+  <desc>
+    An animated spinner visualizing an ongoing loading or data-fetching operation. 
+    Uses TaskStream AI design tokens and respects user motion preferences.
+  </desc>
+
+  <!-- 
+    Embedded <style> block for animation:
+      • The "spin" keyframes rotate the element around its center.
+      • @media (prefers-reduced-motion: reduce) disables the animation.
+  -->
+  <style><![CDATA[
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* 
+      Apply spinning to elements carrying the "spinner" class. 
+      If a user prefers reduced motion, halt the animation.
+    */
+    .spinner {
+      transform-origin: center;
+      animation: spin 1s linear infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .spinner {
+        animation: none;
+      }
+    }
+  ]]></style>
+
+  <!-- 
+    BACKGROUND RING:
+    ------------------------------------------------------------------
+    Provides a subtle contrasting circular ring. Stroke color set to
+    the secondary design token (#64748B) to maintain design consistency.
+  -->
+  <circle
+    id="bgRing"
+    cx="120"
+    cy="120"
+    r="80"
+    fill="none"
+    stroke="#64748B"
+    stroke-width="16"
+    stroke-linecap="round"
+  />
+
+  <!-- 
+    SPINNER RING:
+    ------------------------------------------------------------------
+    The animated ring (class="spinner") that visibly spins around the background ring.
+    Using the primary design token (#2563EB), partial arc is achieved via dash settings.
+  -->
+  <circle
+    id="spinnerRing"
+    class="spinner"
+    cx="120"
+    cy="120"
+    r="80"
+    fill="none"
+    stroke="#2563EB"
+    stroke-width="16"
+    stroke-linecap="round"
+    stroke-dasharray="500"
+    stroke-dashoffset="300"
+  />
+</svg>
