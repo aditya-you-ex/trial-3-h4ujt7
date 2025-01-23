@@ -1,0 +1,89 @@
+# =============================================================================
+# KUBERNETES HORIZONTAL POD AUTOSCALER (HPA) CONFIGURATION - TASKSTREAM AI
+# -----------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   Defines the HorizontalPodAutoscaler resource (autoscaling/v2) for the
+#   analytics service within the "taskstream-analytics" namespace. The HPA
+#   automatically adjusts the number of replicas based on CPU and memory
+#   utilization metrics, ensuring resource optimization, 99.9% uptime, and
+#   controlled scaling behavior for the Analytics Engine.
+#
+# REQUIREMENTS & REFERENCES:
+# 1) Resource Optimization (Tech Specs/2.5.2 Scaling Parameters):
+#    - Scale pods when CPU >70% utilization or memory >80% utilization.
+#    - Maintain a processing time under 30s by reacting quickly to usage spikes.
+# 2) System Reliability (Tech Specs/1.2 System Overview/Success Criteria):
+#    - 99.9% uptime through automated scaling with min 3 replicas, max 10 replicas.
+#    - Combined with the metrics provided by "metrics-server" (internal import).
+# 3) Analytics Engine Scaling (Tech Specs/2.2.1 Core Components):
+#    - Python, Spark, and GPU-enabled container scaling.
+#    - Behavior policies with stabilization windows to prevent rapid scale thrashing.
+#
+# INTERNAL IMPORTS (IE1):
+#   - metrics-server (metrics endpoint): infrastructure/kubernetes/config/metrics-server.yaml
+#   - prometheus-config (recording.rules): infrastructure/kubernetes/monitoring/prometheus/configmap.yaml
+#
+# EXTERNAL IMPORTS (IE2):
+#   - autoscaling/v2 (Kubernetes v1.27+)
+#
+# GLOBALS (FROM JSON SPECIFICATION):
+#   - NAMESPACE = taskstream-analytics
+#   - APP_LABEL = analytics-service
+#
+# NOTE ON BEHAVIOR:
+#   - scaleUp: up to +2 pods in 60s with a 60s stabilization window
+#   - scaleDown: down to -1 pod in 120s increments with a 300s stabilization window
+#   - Helps maintain target utilization rates while avoiding costly oscillation.
+#
+# EXPORTS (AS PER JSON SPEC):
+#   1) analytics-service-hpa (HorizontalPodAutoscaler)
+#      - minReplicas (integer)
+#      - maxReplicas (integer)
+#      - metrics (array of CPU, memory)
+#      - behavior (object with scaleUp/scaleDown policies)
+# =============================================================================
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: analytics-service-hpa
+  namespace: taskstream-analytics
+  labels:
+    app: analytics-service
+    component: analytics
+  annotations:
+    monitoring.taskstream.ai/scaling-events: "enabled"
+    monitoring.taskstream.ai/metrics-source: "metrics-server"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: analytics-service
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
