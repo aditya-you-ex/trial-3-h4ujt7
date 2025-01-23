@@ -1,0 +1,110 @@
+################################################################################
+# HORIZONTAL POD AUTOSCALER (HPA) CONFIGURATION FOR THE NLP SERVICE
+#
+# This file defines an advanced HPA that automatically scales the NLP Deployment
+# (nlp-service) based on CPU and memory utilization. It references the Deployment
+# resource located in "deployment.yaml" (imported internally) by setting the
+# scaleTargetRef to the same "nlp-service" name and namespace.
+#
+# External Import:
+#   - metrics-server (v0.6.0) for resource metrics collection.
+#
+# Key Features:
+#   1) CPU Utilization Target: 70% (supports Task Extraction Accuracy at 95% by
+#      ensuring adequate compute resources).
+#   2) Memory Utilization Target: 80% (helps maintain stable memory availability).
+#   3) Minimum Replicas: 3 (aligned with 99.9% uptime and multi-AZ distribution).
+#   4) Maximum Replicas: 10 (accommodates peak loads without excessive costs).
+#   5) Stabilization Window: 300s for both scale up and scale down to prevent
+#      rapid oscillations and ensure resource optimization goals (40% improvement).
+#   6) Scale Up Policies: Increase pods by 100% or 1 pod, whichever is greater.
+#   7) Scale Down Policies: Decrease pods by 50% or 1 pod, whichever is smaller.
+#
+# Annotations:
+#   - cost-center:        Identifies the cost ownership for NLP operations.
+#   - monitoring:         Indicates that advanced monitoring is enabled to track
+#                         system reliability against the 99.9% uptime target.
+################################################################################
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nlp-service-hpa
+  namespace: taskstream
+  labels:
+    app: nlp-service
+    component: nlp
+    tier: backend
+  # Annotations can help with extra metadata or integrations (e.g., cost/monitoring).
+  annotations:
+    cost-center: "ai-ml-department"
+    monitoring: "enabled"
+
+spec:
+  ##############################################################################
+  # Link to the Deployment we want to scale. The "nlp-deployment" file exports
+  # 'metadata' and 'spec' where this "nlp-service" name is defined.
+  ##############################################################################
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nlp-service
+
+  ##########################################################################
+  # Minimum and maximum number of replicas - ensuring high availability
+  # while handling burst traffic.
+  ##########################################################################
+  minReplicas: 3
+  maxReplicas: 10
+
+  ##########################################################################
+  # SCALING METRICS:
+  #   1) CPU Utilization target at 70%.
+  #   2) Memory Utilization target at 80%.
+  #
+  # These metrics ensure the pods scale up to provide enough resources
+  # (for 95% task extraction accuracy) and help maintain the 40%
+  # resource optimization target by not over-provisioning.
+  ##########################################################################
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+  ##########################################################################
+  # SCALING BEHAVIOR:
+  #   - Stabilization windows of 300 seconds to avoid rapid scale oscillations.
+  #   - Scale up policy: up to 100% or 1 additional pod per 60s interval,
+  #     whichever is higher (selectPolicy: Max).
+  #   - Scale down policy: up to 50% or 1 fewer pod per 60s interval,
+  #     whichever is smaller (selectPolicy: Min).
+  ##########################################################################
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+      selectPolicy: Min
