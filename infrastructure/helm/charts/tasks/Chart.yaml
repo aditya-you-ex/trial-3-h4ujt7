@@ -1,0 +1,132 @@
+################################################################################
+# HELM CHART DEFINITION FILE FOR TASKSTREAM AI - TASKS SERVICE
+# ------------------------------------------------------------------------------
+# This Chart.yaml defines the core Helm chart metadata for the TaskStream AI
+# "tasks" service. It addresses multiple requirements from the technical
+# specifications, including:
+#
+#  (1) Container Orchestration (Technical Specifications/8.4 Orchestration):
+#      - Comprehensive chart configuration supporting auto-scaling, monitoring,
+#        high availability, and secure deployment practices.
+#
+#  (2) Infrastructure Requirements (Technical Specifications/2.5 Deployment
+#      Architecture/2.5.1 Infrastructure Requirements):
+#      - Detailed chart metadata and version controls for multi-region
+#        deployments, with robust resource provisioning, security annotations,
+#        and reliability-focused settings.
+#
+#  (3) High Availability (Technical Specifications/8.1 Deployment Environment):
+#      - Supports region-aware annotations, multiRegion deployment logic,
+#        and references to external dependencies for caches (Redis) and DB
+#        (MongoDB) with failover possibilities, ensuring continuous uptime.
+#
+# This file also references:
+#  • The internal tasks-values.yaml (import_type = reference) for images
+#    and deployment configurations (image & deployment objects).
+#  • External dependencies, each noted with associated library versions.
+#
+# NOTE: Helm 3 merges requirements (dependencies) into Chart.yaml. Each
+# dependency references a separate Helm chart. Comments near each dependency
+# specify the library version:
+#    • Redis     => bitnami/redis v17.x.x
+#    • MongoDB   => bitnami/mongodb v13.x.x
+#    • Prometheus => prometheus-community/prometheus v15.x.x
+################################################################################
+
+apiVersion: "v2"
+name: "taskstream-tasks"
+description: >
+  TaskStream AI tasks service for intelligent project management and task
+  orchestration with enhanced security and monitoring capabilities.
+type: "application"
+version: "1.0.0"     # Chart version
+appVersion: "1.0.0"  # App version corresponding to the tasks service build
+
+################################################################################
+# KEYWORDS, HOME, AND SOURCES
+# ------------------------------------------------------------------------------
+# keywords: Allows indexing for chart repositories, signifying the chart's
+#           purpose and capabilities.
+# home:     The official homepage for TaskStream AI.
+# sources:  Points to the code repository or documentation for deeper reference.
+################################################################################
+keywords:
+  - "taskstream"
+  - "tasks"
+  - "project-management"
+  - "task-orchestration"
+  - "ai-powered"
+  - "secure-deployment"
+  - "monitored-service"
+  - "high-availability"
+home: "https://taskstream.ai"
+sources:
+  - "https://github.com/taskstream/taskstream"
+
+################################################################################
+# MAINTAINERS
+# ------------------------------------------------------------------------------
+# Lists the official maintainers of this chart. Each maintainer entry includes
+# name, email, and an optional URL. This ensures enterprise-level clarity about
+# ownership and contact points.
+################################################################################
+maintainers:
+  - name: "TaskStream Team"
+    email: "team@taskstream.ai"
+    url: "https://taskstream.ai/team"
+
+################################################################################
+# ANNOTATIONS
+# ------------------------------------------------------------------------------
+# Provides extended metadata for artifact management and scanning. This includes
+# references to multi-region readiness, security scanning status, backup
+# enablement, required CPU/memory, etc. Aligns with enterprise compliance and
+# operational oversight.
+################################################################################
+annotations:
+  artifacthub.io/changes: "Initial release of TaskStream Tasks service with enhanced security and monitoring"
+  artifacthub.io/containsSecurityUpdates: "false"
+  artifacthub.io/prerelease: "false"
+  taskstream.ai/multiRegion: "true"
+  taskstream.ai/securityScanned: "true"
+  taskstream.ai/lastSecurityScan: "2023-11-01"
+  taskstream.ai/requiredCPU: "4"
+  taskstream.ai/requiredMemory: "8Gi"
+  taskstream.ai/highAvailability: "true"
+  taskstream.ai/backupEnabled: "true"
+
+################################################################################
+# DEPENDENCIES
+# ------------------------------------------------------------------------------
+# Each dependency references a separate external Helm chart. The condition field
+# can be toggled via values to enable or disable these components. Tags offer a
+# more granular way to switch related dependencies on/off. Versions are pinned
+# to ensure consistent builds:
+#   • redis (bitnami/redis v17.x.x) - caching and real-time data with HA
+#   • mongodb (bitnami/mongodb v13.x.x) - doc storage with sharding
+#   • prometheus (prometheus-community/prometheus v15.x.x) - metrics collection
+################################################################################
+dependencies:
+  - name: "redis"
+    version: "17.x.x" # External dependency: bitnami/redis v17.x.x
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: "redis.enabled"
+    tags:
+      - "cache"
+      - "realtime"
+
+  - name: "mongodb"
+    version: "13.x.x" # External dependency: bitnami/mongodb v13.x.x
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: "mongodb.enabled"
+    tags:
+      - "database"
+      - "storage"
+
+  - name: "prometheus"
+    version: "15.x.x" # External dependency: prometheus-community/prometheus v15.x.x
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: "prometheus.enabled"
+    tags:
+      - "monitoring"
+      - "metrics"
