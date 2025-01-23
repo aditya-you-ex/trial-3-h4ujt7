@@ -1,0 +1,196 @@
+# =============================================================================
+# KUBERNETES RESOURCEQUOTA CONFIGURATION
+# -----------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This file defines and enforces ResourceQuota objects at the namespace level
+#   for the TaskStream AI platform. By setting explicit consumption limits on
+#   CPU, memory, and other Kubernetes resources, we ensure fair resource
+#   allocation, optimal utilization, and prevention of resource exhaustion
+#   across critical platform services.
+#
+# EXTERNAL IMPORT (IE2):
+#   - kubernetes (v1.27+)
+#
+# INTERNAL IMPORT REFERENCE (IE1):
+#   - namespaces.yaml:
+#       - analytics-namespace  (metadata.name: analytics)
+#       - nlp-namespace        (metadata.name: nlp)
+#       - tasks-namespace      (metadata.name: tasks)
+#       - monitoring-namespace (metadata.name: monitoring)
+#       - integration-namespace (metadata.name: integration)
+#
+# GLOBS & REQUIREMENTS (LD2):
+#   - apiVersion: v1
+#   - Resource Quotas derived from:
+#       * ANALYTICS_QUOTAS:
+#         requests.cpu=16,   requests.memory=32Gi,
+#         limits.cpu=32,     limits.memory=64Gi,
+#         pods=50,           services=20,
+#         configmaps=30,     secrets=30,
+#         persistentvolumeclaims=20
+#       * NLP_QUOTAS:
+#         requests.cpu=8,    requests.memory=16Gi,
+#         limits.cpu=16,     limits.memory=32Gi,
+#         pods=30,           services=15,
+#         configmaps=20,     secrets=20,
+#         persistentvolumeclaims=10
+#       * TASKS_QUOTAS:
+#         requests.cpu=8,    requests.memory=16Gi,
+#         limits.cpu=16,     limits.memory=32Gi,
+#         pods=30,           services=15,
+#         configmaps=20,     secrets=20,
+#         persistentvolumeclaims=10
+#       * MONITORING_QUOTAS:
+#         requests.cpu=4,    requests.memory=8Gi,
+#         limits.cpu=8,      limits.memory=16Gi,
+#         pods=20,           services=10,
+#         configmaps=15,     secrets=15,
+#         persistentvolumeclaims=5
+#       * INTEGRATION_QUOTAS:
+#         requests.cpu=4,    requests.memory=8Gi,
+#         limits.cpu=8,      limits.memory=16Gi,
+#         pods=20,           services=10,
+#         configmaps=15,     secrets=15,
+#         persistentvolumeclaims=5
+#
+# ADDITIONAL DETAILS (LD1, S2):
+#   - For each namespace, ResourceQuota ensures that the sum of resource
+#     requests and limits across all pods remains within defined bounds.
+#   - This configuration aligns with the TaskStream AI Technical Specifications
+#     by addressing:
+#       (a) Resource Management in Data Storage Components
+#       (b) Infrastructure Requirements (compute/memory tier definitions)
+#       (c) Scaling Parameters (enforcing resource utilization thresholds)
+#   - The multi-document YAML approach provides distinct ResourceQuota resources.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1) ANALYTICS NAMESPACE: RESOURCE QUOTA
+# -----------------------------------------------------------------------------
+# This ResourceQuota named "analytics-quota" applies to the "analytics" namespace
+# (imported from namespaces.yaml). It enforces higher CPU and memory limits to
+# accommodate heavy data processing and machine learning tasks, aligning with
+# the platform's predictive analytics component requirements.
+# -----------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: analytics-quota
+  namespace: analytics
+spec:
+  hard:
+    requests.cpu: "16"
+    requests.memory: "32Gi"
+    limits.cpu: "32"
+    limits.memory: "64Gi"
+    pods: "50"
+    services: "20"
+    configmaps: "30"
+    secrets: "30"
+    persistentvolumeclaims: "20"
+
+# -----------------------------------------------------------------------------
+# 2) NLP NAMESPACE: RESOURCE QUOTA
+# -----------------------------------------------------------------------------
+# This ResourceQuota named "nlp-quota" is applied to the "nlp" namespace to
+# restrict and manage resource usage for advanced language processing workloads.
+# Since NLP tasks frequently rely on specialized computations, these resource
+# caps balance GPU or advanced CPU usage while preventing overconsumption.
+# -----------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: nlp-quota
+  namespace: nlp
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: "16Gi"
+    limits.cpu: "16"
+    limits.memory: "32Gi"
+    pods: "30"
+    services: "15"
+    configmaps: "20"
+    secrets: "20"
+    persistentvolumeclaims: "10"
+
+# -----------------------------------------------------------------------------
+# 3) TASKS NAMESPACE: RESOURCE QUOTA
+# -----------------------------------------------------------------------------
+# This ResourceQuota named "tasks-quota" pertains to the "tasks" namespace,
+# where primary task management services and related orchestration pods run.
+# The limits enforce boundaries that align with moderate operational overhead
+# while still supporting robust real-time task scheduling and tracking.
+# -----------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: tasks-quota
+  namespace: tasks
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: "16Gi"
+    limits.cpu: "16"
+    limits.memory: "32Gi"
+    pods: "30"
+    services: "15"
+    configmaps: "20"
+    secrets: "20"
+    persistentvolumeclaims: "10"
+
+# -----------------------------------------------------------------------------
+# 4) MONITORING NAMESPACE: RESOURCE QUOTA
+# -----------------------------------------------------------------------------
+# This ResourceQuota named "monitoring-quota" applies to the "monitoring"
+# namespace, ensuring monitoring tools remain within defined resource boundaries.
+# By controlling CPU/memory utilization, we prevent overuse from data collection
+# and visualization workloads, preserving cluster stability.
+# -----------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: monitoring-quota
+  namespace: monitoring
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: "8Gi"
+    limits.cpu: "8"
+    limits.memory: "16Gi"
+    pods: "20"
+    services: "10"
+    configmaps: "15"
+    secrets: "15"
+    persistentvolumeclaims: "5"
+
+# -----------------------------------------------------------------------------
+# 5) INTEGRATION NAMESPACE: RESOURCE QUOTA
+# -----------------------------------------------------------------------------
+# This ResourceQuota named "integration-quota" applies to the "integration"
+# namespace, designated for external connectivity and bridging tasks.
+# The moderate resource limits here cater to integration pods without
+# impacting the overall stability of the cluster, aiding global PDU or API
+# consumption scenarios.
+# -----------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: integration-quota
+  namespace: integration
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: "8Gi"
+    limits.cpu: "8"
+    limits.memory: "16Gi"
+    pods: "20"
+    services: "10"
+    configmaps: "15"
+    secrets: "15"
+    persistentvolumeclaims: "5"
