@@ -1,0 +1,87 @@
+################################################################################
+# KUBERNETES SERVICE MANIFEST FOR THE NLP MICROSERVICE
+#
+# Using kubernetes-service (kubernetes v1.27)
+#
+# REQUIREMENTS ADDRESSED:
+# 1) System Reliability (99.9% uptime) – Achieved via stable routing, session
+#    affinity, and consistent labeling to ensure high availability.
+# 2) Task Extraction Accuracy (95%) – Ensures requests route predictably to
+#    properly configured pods, maintaining consistent NLP processing for
+#    accurate task extraction.
+# 3) Resource Optimization (40% improvement) – Session affinity settings and
+#    stable cluster IP type help optimize resource usage while balancing loads.
+#
+# IMPORT REFERENCES:
+# - INTERNAL IMPORT: nlp-deployment (infrastructure/kubernetes/nlp/deployment.yaml)
+#   * metadata.name = "nlp-service"
+#   * spec.selector.matchLabels.app = "nlp-service"
+#   * spec.template.metadata.labels.component = "nlp"
+#
+# EXPORTS:
+#   name: service
+#   type: kubernetes_resource
+#   members_exposed:
+#     - metadata
+#     - spec
+################################################################################
+apiVersion: v1
+kind: Service
+metadata:
+  # Exported named member: metadata
+  name: nlp-service
+  namespace: taskstream
+  labels:
+    app: nlp-service
+    component: api
+    tier: backend
+    managed-by: kubernetes
+  annotations:
+    prometheus.io/scrape: "true"     # Enables Prometheus scraping
+    prometheus.io/port: "8000"       # Scrape target port for metrics proxy
+    prometheus.io/path: "/metrics"   # Path to metrics endpoint
+spec:
+  # Exported named member: spec
+  type: ClusterIP
+  # Service ports to expose NLP traffic (HTTP API) and internal metrics
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http-api
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: metrics
+  ##############################################################################
+  # SELECTOR – Must align with the matching labels on the NLP pods.
+  # The Deployment includes:
+  #   app: nlp-service
+  #   component: nlp
+  # Hence, both labels are required for correct traffic routing.
+  ##############################################################################
+  selector:
+    app: nlp-service
+    component: nlp
+  ##############################################################################
+  # SESSION AFFINITY (CLIENTIP) – Maintains client-to-pod mapping for the entire
+  # timeout duration, enhancing stability for resource-intensive NLP operations.
+  ##############################################################################
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3-hour session stickiness
+  ##############################################################################
+  # PUBLISH NOT READY ADDRESSES – False to avoid prematurely publishing IPs
+  # that aren't ready to serve requests.
+  ##############################################################################
+  publishNotReadyAddresses: false
+  ##############################################################################
+  # TOPOLOGY KEYS – Attempt to route traffic based on node or zone first,
+  # then region, and if no nodes are suitable, fallback to any.
+  ##############################################################################
+  topologyKeys:
+    - kubernetes.io/hostname
+    - topology.kubernetes.io/zone
+    - topology.kubernetes.io/region
+    - "*"
