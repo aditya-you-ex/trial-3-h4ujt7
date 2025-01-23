@@ -1,0 +1,156 @@
+###############################################################################
+# HELM CHART DEFINITION FILE: TASKSTREAM AI ANALYTICS SERVICE
+# ---------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This Chart.yaml file defines the Helm Chart metadata for the TaskStream AI
+#   analytics service, addressing:
+#     1) Predictive analytics for resource optimization (Tech Specs §1.2 System
+#        Overview/High-Level Description).
+#     2) 99.9% uptime during business hours (Tech Specs §1.2 System Overview/
+#        Success Criteria).
+#     3) Resource optimization for scaling targets (<30s processing time,
+#        80% memory threshold) (Tech Specs §2.5.2 Scaling Parameters).
+#
+# REQUIREMENTS ADDRESSED (FROM JSON SPEC):
+#   - Analytics Engine: Provides advanced predictive analysis functionality using
+#     Python, Spark, scikit-learn, with integrated monitoring.
+#   - System Reliability: Configured for production usage with high availability
+#     (99.9% uptime) using robust Helm dependencies and versioning.
+#   - Resource Optimization: Aligns with explicit resource quotas and horizontal
+#     scaling to maintain performance <30s processing time and memory usage ~80%.
+#
+# IMPORTS AND EXPORTS:
+#   INTERNAL IMPORT (IE1):
+#     - values (in ../values/analytics.yaml):
+#       * .Values.image, .Values.service, .Values.autoscaling, .Values.monitoring
+#       These are used for container image settings, port exposures, HPA config,
+#       and monitoring integrations, respectively.
+#
+#   EXTERNAL DEPENDENCIES (IE2) WITH PURPOSE AND VERSION:
+#     1) redis        => "bitnami/redis" (17.x.x)   - Real-time data, caching
+#     2) postgresql   => "bitnami/postgresql" (12.x.x) - Analytics data storage
+#     3) elasticsearch => "elastic/elasticsearch" (8.x.x) - Search & indexing
+#     4) prometheus   => "prometheus-community/prometheus" (15.x.x) - Monitoring
+#
+# HELM CHART GLOBE:
+#   - apiVersion: v2
+#   - type: application
+#   - kubeVersion: '>=1.21.0'
+#
+# This chart also includes extensive annotations for artifact hub. The changes
+# revolve around enhanced monitoring, analytics reliability, and production
+# readiness, licensed under Apache-2.0.
+###############################################################################
+apiVersion: v2
+name: analytics
+description: TaskStream AI Analytics Service Helm Chart for predictive analytics and resource optimization with enhanced monitoring and high availability
+type: application
+version: "1.0.0"
+appVersion: "1.0.0"
+kubeVersion: ">=1.21.0"
+
+###############################################################################
+# KEYWORDS:
+#   Helps discover this chart in artifact hubs or internal repos for:
+#     - analytics, machine-learning, resource-optimization, predictive-analytics,
+#       monitoring, high-availability
+###############################################################################
+keywords:
+  - "analytics"
+  - "machine-learning"
+  - "resource-optimization"
+  - "predictive-analytics"
+  - "monitoring"
+  - "high-availability"
+
+###############################################################################
+# MAINTAINERS:
+#   Identifies the engineering or DevOps teams responsible for chart upkeep.
+###############################################################################
+maintainers:
+  - name: "TaskStream AI Team"
+    email: "devops@taskstream.ai"
+    url: "https://taskstream.ai"
+
+###############################################################################
+# ANNOTATIONS:
+#   - artifacthub.io/changes: Provide a historical log of major enhancements.
+#   - artifacthub.io/prerelease: Indicates stable or development status.
+#   - artifacthub.io/license: Declares open-source licensing for the chart.
+###############################################################################
+annotations:
+  artifacthub.io/changes: "Enhanced monitoring integration and production configurations"
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/license: "Apache-2.0"
+
+###############################################################################
+# DEPENDENCIES:
+#   Each external dependency is conditionally included in the deployment,
+#   allowing toggling via .Values.<dependency>.enabled. Tags group them for
+#   partial installation or advanced Helm usage.
+###############################################################################
+dependencies:
+  - name: redis
+    version: "17.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: "redis.enabled"
+    tags:
+      - "cache"
+      - "realtime"
+
+  - name: postgresql
+    version: "12.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: "postgresql.enabled"
+    tags:
+      - "database"
+      - "persistence"
+
+  - name: elasticsearch
+    version: "8.x.x"
+    repository: "https://helm.elastic.co"
+    condition: "elasticsearch.enabled"
+    tags:
+      - "search"
+      - "analytics"
+
+  - name: prometheus
+    version: "15.x.x"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: "prometheus.enabled"
+    tags:
+      - "monitoring"
+      - "metrics"
+
+###############################################################################
+# CUSTOM EXPORTS SECTION:
+#   In compliance with the request to expose named members [metadata, dependencies,
+#   values] for "Chart" under the 'exports' key. This is non-standard in Helm,
+#   but provided for completeness. Helm generally ignores unrecognized fields.
+###############################################################################
+exports:
+  Chart:
+    metadata:
+      apiVersion: "v2"
+      type: "application"
+      kubeVersion: ">=1.21.0"
+    dependencies:
+      - name: "redis"
+        version: "17.x.x"
+      - name: "postgresql"
+        version: "12.x.x"
+      - name: "elasticsearch"
+        version: "8.x.x"
+      - name: "prometheus"
+        version: "15.x.x"
+    values:
+      # Referencing fields from ../values/analytics.yaml (internal import).
+      # Provided as a conceptual pointer to the configured object blocks:
+      image:
+        # .Values.image.* is used to define container registry, tag, pullPolicy, etc.
+      service:
+        # .Values.service.* is used to define Service type, ports, etc.
+      autoscaling:
+        # .Values.autoscaling.* is used to define HorizontalPodAutoscaler settings.
+      monitoring:
+        # .Values.monitoring.* is used to configure additional monitoring parameters.
