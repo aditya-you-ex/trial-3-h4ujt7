@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Security Headers (Recommended server-side, shown here per specification) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.taskstream.ai; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()" />
+  <meta http-equiv="Strict-Transport-Security" content="max-age=31536000; includeSubDomains; preload" />
+
+  <!-- Meta Tags from JSON Specification -->
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes, minimum-scale=1.0, maximum-scale=5.0" />
+  <meta name="theme-color" content="#2563EB" />
+  <meta name="description" content="TaskStream AI - Intelligent project management platform powered by AI for enhanced team collaboration and productivity" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="color-scheme" content="light dark" />
+
+  <!-- Link Tags (Icons, Manifest, Fonts, DNS Prefetch) -->
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/logo.svg" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+  <link rel="dns-prefetch" href="https://api.taskstream.ai" />
+
+  <!-- Global CSS Implementing Design System Tokens and Accessibility -->
+  <link rel="stylesheet" href="./src/styles/global.css" />
+
+  <title>TaskStream AI - Intelligent Project Management</title>
+</head>
+<body>
+  <noscript>You need to enable JavaScript to run this application. Please enable it to continue.</noscript>
+  <div id="root" aria-label="TaskStream AI Application" data-purpose="React application mount point"></div>
+
+  <!-- React Application Entry Point (Optimized, Defer-Loaded) -->
+  <script type="module" src="./src/index.tsx" defer></script>
+</body>
+</html>
