@@ -1,0 +1,169 @@
+################################################################################
+# HELM CHART DEFINITION (CHART.YAML)
+# ------------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This Chart.yaml defines the TaskStream AI "taskstream-storage" Helm chart,
+#   which orchestrates the deployment of PostgreSQL (14+), MongoDB (6.0+),
+#   Redis (7.0+), and Elasticsearch (8.0+) for storing, caching, and
+#   searching data across the platform. The configuration enforces:
+#     1) Database Architecture from the technical specifications (replication,
+#        sharding, multi-AZ, etc.)
+#     2) High Availability through scalable sub-charts with automated failover
+#     3) Data Security under AES-256-GCM at rest, TLS 1.3 in transit, and
+#        automated key rotation.
+#
+# COMPONENTS & REQUIREMENTS:
+#   - Aligns with the v2 Chart API version for Helm
+#   - Includes references to external dependencies from Bitnami and Elastic repos
+#   - Maintains compliance with "soc2-type2" for enterprise-level data protection
+#   - Ties in with the storage-values.yaml file for advanced configurations
+#
+# USAGE & NOTES:
+#   - "postgresql.enabled", "mongodb.enabled", "redis.enabled", and
+#     "elasticsearch.enabled" can be toggled in values to enable/disable each
+#     sub-chart.
+#   - The "tags" array for each dependency clarifies shared usage across sub-charts.
+#   - The "condition" field references the booleans in values for conditional chart loading.
+#
+################################################################################
+apiVersion: v2
+
+################################################################################
+# NAME & DESCRIPTION
+# ------------------------------------------------------------------------------
+# name:               The name of this Helm chart as recognized by Helm
+# description:        A comprehensive summary of the chart's purpose, referencing
+#                     the high availability, security, and compliance features.
+################################################################################
+name: taskstream-storage
+description: >
+  Enterprise-grade Helm chart for TaskStream AI storage components with high
+  availability, security, and compliance features. Supports multi-AZ replication,
+  advanced data encryption, and real-time scaling for PostgreSQL, MongoDB,
+  Redis, and Elasticsearch.
+
+################################################################################
+# TYPE & VERSIONING
+# ------------------------------------------------------------------------------
+# type:         Indicates that this chart is for an application, as opposed to
+#               a library chart.
+# version:      Helm chart version, incremented following semantic versioning
+#               as new features or fixes are introduced.
+# appVersion:   The version of the underlying application (or suite of
+#               applications) deployed by this chart.
+################################################################################
+type: application
+version: "1.0.0"
+appVersion: "1.0.0"
+
+################################################################################
+# KUBERNETES VERSION CONSTRAINT
+# ------------------------------------------------------------------------------
+# This chart requires Kubernetes v1.27.0 or higher based on the definitions in
+# the technical specification and usage of advanced features for storage,
+# security, and networking.
+################################################################################
+kubeVersion: ">=1.27.0"
+
+################################################################################
+# ANNOTATIONS FOR SECURITY & COMPLIANCE
+# ------------------------------------------------------------------------------
+# These annotations reflect the chart's classification, compliance adherence,
+# and encryption requirements, aligning with enterprise security standards.
+################################################################################
+annotations:
+  security.taskstream.ai/compliance: "soc2-type2"
+  security.taskstream.ai/data-classification: "confidential"
+  security.taskstream.ai/encryption-required: "true"
+
+################################################################################
+# PROJECT LINKS
+# ------------------------------------------------------------------------------
+# home:     The official home URL for TaskStream AI.
+# sources:  Points to the code repository for further reference.
+################################################################################
+home: "https://taskstream.ai"
+sources:
+  - "https://github.com/taskstream/taskstream-ai"
+
+################################################################################
+# MAINTAINERS
+# ------------------------------------------------------------------------------
+# The chart maintainers, typically identified by name and email for contact.
+################################################################################
+maintainers:
+  - name: "TaskStream AI Team"
+    email: "devops@taskstream.ai"
+
+################################################################################
+# KEYWORDS
+# ------------------------------------------------------------------------------
+# A set of tags that categorize the chart for easier discovery.
+################################################################################
+keywords:
+  - "storage"
+  - "database"
+  - "cache"
+  - "search"
+  - "high-availability"
+  - "security"
+  - "compliance"
+
+################################################################################
+# RENDERING ENGINE
+# ------------------------------------------------------------------------------
+# Defines which template rendering engine is used by this chart (Go templates).
+################################################################################
+engine: "gotpl"
+
+################################################################################
+# DEPENDENCIES
+# ------------------------------------------------------------------------------
+# Lists all sub-charts required for PostgreSQL, MongoDB, Redis, and Elasticsearch,
+# referencing the official repositories. Each dependency includes:
+#   - name:       The sub-chart name (e.g., postgresql, mongodb, redis, etc.)
+#   - version:    SemVer version pinned per the technical specification
+#   - repository: The Helm repository hosting this sub-chart
+#   - condition:  Value path controlling chart enablement
+#   - tags:       Additional grouping or classification tags
+################################################################################
+dependencies:
+  - name: postgresql
+    version: "14.0.0"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: "postgresql.enabled"
+    tags:
+      - database
+      - sql
+      - ha
+    # This Bitnami PostgreSQL sub-chart provides enterprise-grade HA and security
+
+  - name: mongodb
+    version: "6.0.0"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: "mongodb.enabled"
+    tags:
+      - database
+      - nosql
+      - document-store
+    # This Bitnami MongoDB sub-chart enables auto-sharding, replication, and encryption
+
+  - name: redis
+    version: "7.0.0"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: "redis.enabled"
+    tags:
+      - cache
+      - in-memory
+      - real-time
+    # This Bitnami Redis sub-chart powers caching and real-time data with cluster mode
+
+  - name: elasticsearch
+    version: "8.10.0"
+    repository: "https://helm.elastic.co"
+    condition: "elasticsearch.enabled"
+    tags:
+      - search
+      - analytics
+      - logging
+    # The Elastic chart for Elasticsearch offers powerful indexing, search, and analytics
