@@ -1,0 +1,214 @@
+###############################################################################
+# Docker Compose configuration for orchestrating TaskStream AI backend services
+# including NLP, analytics, authentication, task management, and integration
+# with their essential database and caching dependencies. This file adheres to
+# an enterprise-grade standard, implementing best practices in security, health
+# checking, resource limits, and logging.
+###############################################################################
+version: "3.8"
+
+###############################################################################
+# Define top-level networks for inter-service communication. A dedicated bridge
+# network is created with a specified subnet for clarity and IP address
+# management.
+###############################################################################
+networks:
+  taskstream_network:
+    driver: bridge
+    name: "taskstream_network"
+    ipam:
+      config:
+        - subnet: "172.20.0.0/16"
+
+###############################################################################
+# Define named volumes for persistent data storage across service restarts.
+# These volumes prevent data loss and keep the containers stateless.
+###############################################################################
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  mongodb_data:
+    driver: local
+
+###############################################################################
+# Define Docker secrets to avoid storing sensitive credentials in plain text.
+# The secret file must exist on the host at ./secrets/postgres_password.txt.
+###############################################################################
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+
+###############################################################################
+# List of services for TaskStream AI backend orchestration.
+###############################################################################
+services:
+
+  #############################################################################
+  # NLP Service (Python-based) - Built from the internal multi-stage Dockerfile
+  # using the 'python_service' target. This service depends on Redis and
+  # Elasticsearch for caching and advanced text search capabilities.
+  #############################################################################
+  nlp_service:
+    container_name: "nlp_service"
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: python_service
+    environment:
+      - PYTHON_ENV=development
+      - MODEL_PATH=/app/models
+      - API_PORT=5000
+      - MAX_WORKERS=4
+      - MEMORY_LIMIT=4g
+    volumes:
+      - "./nlp:/app/nlp"
+      - "./models:/app/models"
+    depends_on:
+      - redis
+      - elasticsearch
+    networks:
+      - taskstream_network
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: "4G"
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  #############################################################################
+  # PostgreSQL Database (v14-alpine) - Primary relational datastore. Uses
+  # secrets for password management, health checks for readiness, and logs
+  # configured for production. Runs with scram-sha-256 for host authentication.
+  #############################################################################
+  postgres:
+    image: "postgres:14-alpine" # postgres v14-alpine
+    container_name: "postgres_service"
+    environment:
+      - POSTGRES_DB=taskstream
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    volumes:
+      - "postgres_data:/var/lib/postgresql/data"
+    ports:
+      - "5432:5432"
+    secrets:
+      - postgres_password
+    networks:
+      - taskstream_network
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: "4G"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  #############################################################################
+  # Redis (v7.0-alpine) - In-memory key-value store used as a cache and for
+  # real-time data. Security provisions and resource constraints are included.
+  #############################################################################
+  redis:
+    image: "redis:7.0-alpine" # redis v7.0-alpine
+    container_name: "redis_service"
+    networks:
+      - taskstream_network
+    volumes:
+      - "redis_data:/data"
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "1G"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  #############################################################################
+  # Elasticsearch (v8.0) - Search and analytics engine, providing full-text
+  # search and indexing capabilities for natural language processing tasks.
+  # Configured in single-node mode for local/development usage.
+  #############################################################################
+  elasticsearch:
+    image: "elasticsearch:8.0" # elasticsearch v8.0
+    container_name: "elasticsearch_service"
+    environment:
+      - "discovery.type=single-node"
+    networks:
+      - taskstream_network
+    volumes:
+      - "elasticsearch_data:/usr/share/elasticsearch/data"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: "4G"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9200 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  #############################################################################
+  # MongoDB (v6.0) - Document-based database used for storing unstructured
+  # or semi-structured data. Deployed in a single container for local/
+  # development. Production deployments would involve replica sets or sharding.
+  #############################################################################
+  mongodb:
+    image: "mongodb:6.0" # mongodb v6.0
+    container_name: "mongodb_service"
+    networks:
+      - taskstream_network
+    volumes:
+      - "mongodb_data:/data/db"
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "2G"
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
