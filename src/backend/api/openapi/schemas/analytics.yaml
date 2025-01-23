@@ -1,0 +1,476 @@
+openapi: "3.0.3"
+
+################################################################################
+# TaskStream AI Analytics OpenAPI Schemas
+# ------------------------------------------------------------------------------
+# This file defines the comprehensive schema components for analytics-related
+# data structures within the TaskStream AI platform. These schemas encompass:
+#   1) Performance metrics with trend and confidence scores (PerformanceMetric)
+#   2) Resource-focused analytics with predictive utilization (ResourceAnalytics)
+#   3) Team performance data and capacity modeling (TeamPerformance)
+#   4) A complete analytics dashboard capturing metrics, resources, teams,
+#      insights, and anomalies (AnalyticsDashboard)
+#   5) Reporting request specification including scheduling and distribution
+#      (ReportRequest)
+#
+# All schemas reflect enterprise-grade detail to meet the platform's
+# predictive analytics, resource utilization, and optimization goals per
+# TaskStream AI's technical specifications.
+# ------------------------------------------------------------------------------
+# References:
+#   - OpenAPI 3.0.0 (third-party)
+#   - Common API response schemas (ApiResponse, PaginatedResponse) from:
+#       ./common.yaml#/components/schemas
+################################################################################
+
+info:
+  title: "TaskStream AI - Analytics Schemas"
+  version: "1.0.0"
+  description: >
+    OpenAPI schema definitions for TaskStream AI analytics endpoints,
+    including performance metrics, resource analytics, team insights,
+    and reporting interfaces. Supports the Analytics Engine component
+    to fulfill predictive analytics, resource optimization, and success
+    criteria for improved project execution.
+
+################################################################################
+# No paths are defined here; only reusable schemas for analytics. Endpoints
+# utilizing these schemas would be defined in other files (e.g., analytics.yml).
+################################################################################
+paths: {}
+
+components:
+  ##############################################################################
+  # SCHEMA DEFINITIONS
+  ##############################################################################
+  schemas:
+
+    ########################################################################
+    # MetricType
+    # ----------------------------------------------------------------------
+    # Enumerates permissible metric categories used in the analytics domain.
+    # Derived from the 'METRIC_TYPES' global definition:
+    #   - RESOURCE_UTILIZATION
+    #   - SPRINT_VELOCITY
+    #   - TASK_COMPLETION_RATE
+    #   - TEAM_PRODUCTIVITY
+    #   - PREDICTIVE_EFFICIENCY
+    #   - BOTTLENECK_RISK
+    #   - OPTIMIZATION_POTENTIAL
+    ########################################################################
+    MetricType:
+      type: string
+      description: "Specifies the category of the metric under measurement."
+      enum:
+        - RESOURCE_UTILIZATION
+        - SPRINT_VELOCITY
+        - TASK_COMPLETION_RATE
+        - TEAM_PRODUCTIVITY
+        - PREDICTIVE_EFFICIENCY
+        - BOTTLENECK_RISK
+        - OPTIMIZATION_POTENTIAL
+
+    ########################################################################
+    # TimeRangeUnit
+    # ----------------------------------------------------------------------
+    # Enumerates permitted units for measuring or grouping time ranges.
+    # Derived from the 'TIME_RANGE_UNITS' global definition:
+    #   - days
+    #   - weeks
+    #   - months
+    #   - quarters
+    #   - custom
+    ########################################################################
+    TimeRangeUnit:
+      type: string
+      description: "Indicates the unit of time for a specified time range."
+      enum:
+        - days
+        - weeks
+        - months
+        - quarters
+        - custom
+
+    ########################################################################
+    # TimeRange
+    # ----------------------------------------------------------------------
+    # Defines the start and end of a time window for analytics, including an
+    # optional unit and a timezone reference to ensure consistent calculations
+    # across distributed teams. This is conceptually aligned with the
+    # 'TimeRange' interface in shared code.
+    ########################################################################
+    TimeRange:
+      type: object
+      title: "TimeRange"
+      description: "Defines start/end dates, timezone, and optional time unit."
+      required:
+        - startDate
+        - endDate
+        - timezone
+      properties:
+        startDate:
+          type: string
+          format: date-time
+          description: "ISO 8601 timestamp indicating the start of the time range."
+        endDate:
+          type: string
+          format: date-time
+          description: "ISO 8601 timestamp indicating the end of the time range."
+        timezone:
+          type: string
+          description: "IANA timezone identifier (e.g., 'America/Los_Angeles')."
+        unit:
+          $ref: "#/components/schemas/TimeRangeUnit"
+
+    ########################################################################
+    # PerformanceMetric
+    # ----------------------------------------------------------------------
+    # Enhanced performance metric schema with trend analysis and confidence
+    # scoring. Aligns with predictive analytics goals specified in:
+    #  - 'Analytics Engine' (predictive analytics for resource optimization)
+    #  - 'Resource Optimization' (improved resource utilization)
+    ########################################################################
+    PerformanceMetric:
+      type: object
+      title: "PerformanceMetric"
+      description: "Captures a single performance metric, including trend and confidence data."
+      required:
+        - type
+        - value
+        - threshold
+        - trend
+        - confidence
+        - metadata
+      properties:
+        type:
+          $ref: "#/components/schemas/MetricType"
+          description: "Identifies the metric category (e.g. resource utilization, velocity)."
+        value:
+          type: number
+          description: "Current measured value of this metric."
+        threshold:
+          type: number
+          description: "The critical or target threshold for this metric (e.g. 80%)."
+        trend:
+          type: object
+          description: "Trend data describing changes (e.g. a time-series or slope)."
+          additionalProperties: true
+        confidence:
+          type: number
+          description: "Confidence score (0-1) or percentage indicating the reliability of the measurement."
+        metadata:
+          type: object
+          description: "Arbitrary metadata or contextual tags about this performance metric."
+          additionalProperties: true
+
+    ########################################################################
+    # ResourceAnalytics
+    # ----------------------------------------------------------------------
+    # Comprehensive resource analytics schema with predictive insights and
+    # optimization metrics. Addresses resource management improvements and
+    # 40% utilization enhancement targets.
+    ########################################################################
+    ResourceAnalytics:
+      type: object
+      title: "ResourceAnalytics"
+      description: "Captures granular data on resource usage, allocation, prediction, and bottlenecks."
+      required:
+        - resourceId
+        - utilization
+        - allocatedHours
+        - actualHours
+        - efficiency
+        - optimizationScore
+        - predictedUtilization
+        - bottleneckRisk
+      properties:
+        resourceId:
+          type: string
+          description: "Unique identifier of the resource (user, hardware, or service)."
+        utilization:
+          type: number
+          description: "Current utilization percentage (e.g. 75.0 for 75%)."
+        allocatedHours:
+          type: number
+          description: "Hours allocated to this resource within the current time range."
+        actualHours:
+          type: number
+          description: "Actual hours logged or used by this resource."
+        efficiency:
+          type: number
+          description: "Computed ratio of actual hours vs. allocated hours, or similar KPI."
+        optimizationScore:
+          type: number
+          description: "Represents how well the resource is optimized, factoring in usage patterns."
+        predictedUtilization:
+          type: number
+          description: "Forecasted future utilization (e.g. 82.5%)."
+        bottleneckRisk:
+          type: object
+          description: "Explains or quantifies risk of this resource becoming a bottleneck."
+          additionalProperties: true
+
+    ########################################################################
+    # TeamPerformance
+    # ----------------------------------------------------------------------
+    # Enhanced team performance analytics with predictive modeling, skill
+    # assessment, and capacity trends over time.
+    ########################################################################
+    TeamPerformance:
+      type: object
+      title: "TeamPerformance"
+      description: "Provides aggregated metrics for a team, including velocity, completion rates, and skill data."
+      required:
+        - teamId
+        - sprintVelocity
+        - taskCompletionRate
+        - productivityScore
+        - predictedPerformance
+        - skillMatrix
+        - capacityTrend
+      properties:
+        teamId:
+          type: string
+          description: "Unique identifier referencing a team entity."
+        sprintVelocity:
+          type: number
+          description: "Number of story points or tasks completed per sprint."
+        taskCompletionRate:
+          type: number
+          description: "Rate of tasks completed vs. tasks committed, in percentage or ratio format."
+        productivityScore:
+          type: number
+          description: "An aggregated index representing the team's overall productivity."
+        predictedPerformance:
+          type: object
+          description: "Predictive analytics object providing forecast data for upcoming sprints."
+          additionalProperties: true
+        skillMatrix:
+          type: object
+          description: "Representation of the team's skill distribution or expertise areas."
+          additionalProperties: true
+        capacityTrend:
+          type: array
+          description: "Historical or forward-looking trend data capturing capacity changes over time."
+          items:
+            type: object
+            additionalProperties: true
+
+    ########################################################################
+    # AnalyticsDashboard
+    # ----------------------------------------------------------------------
+    # A comprehensive dashboard schema, unifying multiple metrics, resources,
+    # teams, insights, anomalies, and predictions to support real-time
+    # analytics and execution optimization.
+    ########################################################################
+    AnalyticsDashboard:
+      type: object
+      title: "AnalyticsDashboard"
+      description: "Central summary of analytics data across metrics, resources, teams, and predictive insights."
+      required:
+        - timeRange
+        - metrics
+        - resources
+        - teams
+        - insights
+        - predictions
+        - recommendations
+        - anomalies
+      properties:
+        timeRange:
+          $ref: "#/components/schemas/TimeRange"
+        metrics:
+          type: array
+          description: "Collection of relevant performance metrics for this time range."
+          items:
+            $ref: "#/components/schemas/PerformanceMetric"
+        resources:
+          type: array
+          description: "Array of resource-level analytics for this time range."
+          items:
+            $ref: "#/components/schemas/ResourceAnalytics"
+        teams:
+          type: array
+          description: "Aggregate data for various teams, each reflecting capacity and performance analytics."
+          items:
+            $ref: "#/components/schemas/TeamPerformance"
+        insights:
+          type: object
+          description: "ML/AI-driven insights revealing key findings or recommended actions for leadership."
+          additionalProperties: true
+        predictions:
+          type: object
+          description: "Predictive analysis results, such as upcoming bottlenecks or resource usage spikes."
+          additionalProperties: true
+        recommendations:
+          type: array
+          description: "List of recommended actions or strategies based on analytics outcomes."
+          items:
+            type: object
+            additionalProperties: true
+        anomalies:
+          type: array
+          description: "Detected anomalies or outliers within metrics, resources, or teams."
+          items:
+            type: object
+            additionalProperties: true
+
+    ########################################################################
+    # ReportRequest
+    # ----------------------------------------------------------------------
+    # Enhanced report generation request schema, supporting scheduling and
+    # distribution parameters for advanced analytics output.
+    ########################################################################
+    ReportRequest:
+      type: object
+      title: "ReportRequest"
+      description: "Specifies advanced reporting generation details, including scheduling and distribution."
+      required:
+        - reportType
+        - format
+        - parameters
+        - customization
+        - scheduling
+        - distribution
+      properties:
+        reportType:
+          type: string
+          description: "Type or category of the report, e.g., 'resourceUtilization', 'teamPerformance'."
+        format:
+          type: string
+          description: "Output format requested (e.g., 'pdf', 'xlsx')."
+        parameters:
+          type: object
+          description: "Key-value pairs for filter criteria, date ranges, or advanced settings."
+          additionalProperties: true
+        customization:
+          type: object
+          description: "Presentation or layout customizations for the generated report."
+          additionalProperties: true
+        scheduling:
+          type: object
+          description: "Defines scheduling logic for repeating or delayed report generation, if desired."
+          additionalProperties: true
+        distribution:
+          type: array
+          description: "List of distribution targets (e.g. email recipients, Slack channels)."
+          items:
+            type: object
+            additionalProperties: true
+
+    ############################################################################
+    # API/RESPONSE WRAPPERS (REFERENCING COMMON SCHEMAS)
+    # ----------------------------------------------------------------------------
+    # Leverages the Common Schemas (ApiResponse, PaginatedResponse) for uniformity
+    # across the TaskStream AI platform. Ensures each analytics data type has
+    # an API response variant and an optionally paginated variant.
+    ############################################################################
+
+    ########################################################################
+    # PerformanceMetricApiResponse
+    ########################################################################
+    PerformanceMetricApiResponse:
+      description: "Wraps a single PerformanceMetric in the standard ApiResponse format."
+      allOf:
+        - $ref: "./common.yaml#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/PerformanceMetric"
+          required:
+            - data
+
+    PerformanceMetricPaginatedResponse:
+      description: "Wraps a list of PerformanceMetric items in a PaginatedResponse."
+      allOf:
+        - $ref: "./common.yaml#/components/schemas/PaginatedResponse"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/PerformanceMetric"
+          required:
+            - items
+
+    ########################################################################
+    # ResourceAnalyticsApiResponse
+    ########################################################################
+    ResourceAnalyticsApiResponse:
+      description: "Wraps a single ResourceAnalytics object in the standard ApiResponse format."
+      allOf:
+        - $ref: "./common.yaml#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/ResourceAnalytics"
+          required:
+            - data
+
+    ResourceAnalyticsPaginatedResponse:
+      description: "Wraps a list of ResourceAnalytics items in a PaginatedResponse."
+      allOf:
+        - $ref: "./common.yaml#/components/schemas/PaginatedResponse"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ResourceAnalytics"
+          required:
+            - items
+
+    ########################################################################
+    # TeamPerformanceApiResponse
+    ########################################################################
+    TeamPerformanceApiResponse:
+      description: "Wraps a single TeamPerformance with the standard ApiResponse format."
+      allOf:
+        - $ref: "./common.yaml#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/TeamPerformance"
+          required:
+            - data
+
+    TeamPerformancePaginatedResponse:
+      description: "Wraps a list of TeamPerformance objects in a PaginatedResponse."
+      allOf:
+        - $ref: "./common.yaml#/components/schemas/PaginatedResponse"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/TeamPerformance"
+          required:
+            - items
+
+    ########################################################################
+    # AnalyticsDashboardApiResponse
+    ########################################################################
+    AnalyticsDashboardApiResponse:
+      description: "Wraps an AnalyticsDashboard object in standard ApiResponse form."
+      allOf:
+        - $ref: "./common.yaml#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/AnalyticsDashboard"
+          required:
+            - data
+
+    ########################################################################
+    # ReportRequestApiResponse
+    ########################################################################
+    ReportRequestApiResponse:
+      description: "Wraps a single ReportRequest in the standard ApiResponse format."
+      allOf:
+        - $ref: "./common.yaml#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/ReportRequest"
+          required:
+            - data
