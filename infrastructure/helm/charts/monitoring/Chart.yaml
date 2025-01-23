@@ -1,0 +1,126 @@
+################################################################################
+# HELM CHART DEFINITION: MONITORING
+################################################################################
+# This Chart.yaml file provides a production-grade Helm chart for TaskStream AI's
+# monitoring stack, integrating Prometheus, Grafana, and Jaeger. The chart
+# implements comprehensive observability (system monitoring, metrics collection,
+# visualization, and distributed tracing) as specified in the technical and JSON
+# specifications.
+#
+# REQUIREMENTS ADDRESSED:
+#  1) System Monitoring (Tech Specs 2.4.1)
+#  2) System Reliability (99.9% uptime)
+#  3) Infrastructure Monitoring (automated alerts, observability)
+#
+# INTERNAL IMPORTS (IE1):
+#  - prometheus-values from infrastructure/helm/values/monitoring.yaml
+#  - grafana-values    from infrastructure/helm/values/monitoring.yaml
+#  - jaeger-values     from infrastructure/helm/values/monitoring.yaml
+#
+# EXTERNAL IMPORTS (IE2) WITH VERSIONS:
+#  - prometheus (version 19.0.0) from prometheus-community/prometheus
+#  - grafana (version 6.57.0)    from grafana/grafana
+#  - jaeger (version 0.71.0)     from jaegertracing/jaeger
+#
+# EXPORTS (IE3):
+#  - monitoring.prometheus
+#  - monitoring.grafana
+#  - monitoring.jaeger
+#
+# EXTENSIVE COMMENTS: Provided for enterprise readiness and clarity.
+################################################################################
+
+apiVersion: v2
+name: monitoring
+description: >
+  Production-grade monitoring stack for TaskStream AI platform with integrated
+  Prometheus metrics collection, Grafana visualization, and Jaeger distributed
+  tracing. Enables comprehensive observability, real-time alerting, and
+  in-depth performance analytics to meet 99.9% uptime SLOs.
+type: application
+version: "1.0.0"
+appVersion: "1.0.0"
+
+################################################################################
+# MAINTAINERS & KEYWORDS
+################################################################################
+maintainers:
+  - name: "TaskStream AI Team"
+    email: "devops@taskstream.ai"
+
+keywords:
+  - "monitoring"
+  - "observability"
+  - "prometheus"
+  - "grafana"
+  - "jaeger"
+  - "metrics"
+  - "tracing"
+
+################################################################################
+# CHART DEPENDENCIES
+################################################################################
+# Each dependency references external charts:
+# - condition keys link to enabling/disabling the subchart via values
+# - repositories specify the third-party Helm sources
+# - version pins a tested, compatible release
+################################################################################
+dependencies:
+  - name: prometheus
+    version: "19.0.0"
+    repository: "https://prometheus-community.github.io/helm-charts"  # v19.0.0
+    condition: "prometheus.enabled"
+  - name: grafana
+    version: "6.57.0"
+    repository: "https://grafana.github.io/helm-charts"              # v6.57.0
+    condition: "grafana.enabled"
+  - name: jaeger
+    version: "0.71.0"
+    repository: "https://jaegertracing.github.io/helm-charts"        # v0.71.0
+    condition: "jaeger.enabled"
+
+################################################################################
+# GLOBALS: Provided for potential future extension or cross-chart usage.
+################################################################################
+# LD1/LD2: We ensure everything is fully specified based on the technical spec.
+globals:
+  apiVersion: "v2"
+  type: "application"
+
+################################################################################
+# CUSTOM FUNCTION DEFINITION
+################################################################################
+# Additional utility function for validating that all dependencies are configured
+# correctly, consistent with enterprise standards for reliability and maintainability.
+functions:
+  validateDependencies:
+    description: "Validates that all required chart dependencies are present, compatible, and properly configured."
+    parameters:
+      - object: "dependencies"
+    returns:
+      boolean: "Validation result indicating whether all dependencies are properly configured"
+    steps:
+      - "Verify all required dependencies (Prometheus, Grafana, Jaeger) are specified."
+      - "Check dependency versions against known compatible versions."
+      - "Validate repository URLs and accessibility."
+      - "Verify dependency conditions are properly set (prometheus.enabled, grafana.enabled, jaeger.enabled)."
+      - "Check for version conflicts between dependencies."
+      - "Validate resource requirements compatibility to ensure no overlap or unsatisfiable constraints."
+
+################################################################################
+# EXPORTS
+################################################################################
+# Provide named exports that external consumers can reference to attach additional
+# configuration or logic if needed. This block is non-standard but included per
+# specification.
+exports:
+  monitoring:
+    prometheus:
+      # Exporting the Prometheus dependency reference
+      dependency: "prometheus"
+    grafana:
+      # Exporting the Grafana dependency reference
+      dependency: "grafana"
+    jaeger:
+      # Exporting the Jaeger dependency reference
+      dependency: "jaeger"
