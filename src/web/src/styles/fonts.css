@@ -1,0 +1,184 @@
+/* 
+  =============================================================================
+  TaskStream AI - Fonts and Typography Styles
+  =============================================================================
+  This file defines and exports the Inter and SF Pro font families, implementing
+  the design system's typography requirements:
+
+  1) Typography System:
+     - Inter as the primary font family
+     - SF Pro as the secondary font family
+     - System font stack fallback for enhanced compatibility
+
+  2) Design System Implementation:
+     - Core font-face declarations for consistent text rendering
+     - Default sizing and line heights for readability
+
+  3) Accessibility Standards:
+     - Focus on clear, legible font weights and sizes
+     - Uses "font-display: swap" to ensure text remains visible during font load
+*/
+
+/* -----------------------------------------------------------------------------
+   Font-Face Declarations
+   -----------------------------------------------------------------------------
+   Below we declare each weight variant for Inter and SF Pro. These fonts are
+   imported from the local assets directory as WOFF2 files for optimal loading.
+   Each font-face is set to "swap" for a better user experience in case of slow
+   connections.
+----------------------------------------------------------------------------- */
+
+/* Inter Regular (400) */
+@font-face {
+  font-family: 'Inter';
+  src: url('../assets/fonts/inter/Inter-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Inter Medium (500) */
+@font-face {
+  font-family: 'Inter';
+  src: url('../assets/fonts/inter/Inter-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Inter Bold (700) */
+@font-face {
+  font-family: 'Inter';
+  src: url('../assets/fonts/inter/Inter-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* SF Pro Regular (400) */
+@font-face {
+  font-family: 'SF Pro';
+  src: url('../assets/fonts/sf-pro/SFPro-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* SF Pro Medium (500) */
+@font-face {
+  font-family: 'SF Pro';
+  src: url('../assets/fonts/sf-pro/SFPro-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* SF Pro Bold (700) */
+@font-face {
+  font-family: 'SF Pro';
+  src: url('../assets/fonts/sf-pro/SFPro-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* -----------------------------------------------------------------------------
+   Root-Level Variables & Global Defaults
+   -----------------------------------------------------------------------------
+   We establish a custom CSS variable for the primary font stack, which
+   references Inter (preferred) and SF Pro (secondary), then falls back to
+   a broader system stack. This ensures graceful degradation.
+----------------------------------------------------------------------------- */
+:root {
+  /* 
+    Primary font stack variable including Inter, SF Pro, and common system fonts.
+    Adjust or extend the fallback fonts as needed for broader compatibility. 
+  */
+  --font-primary: 'Inter', 'SF Pro', -apple-system, BlinkMacSystemFont, 
+                  'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* 
+  Base global style to ensure consistent, accessible text rendering across 
+  the application. 
+*/
+html {
+  font-size: 16px; /* Base font size for standard desktop screens */
+  line-height: 1.5; /* Ensures comfortable spacing for most text */
+}
+
+/* 
+  The body tag uses the primary font stack variable. Additional custom
+  resets or base layout styles can be defined here if required by the 
+  overall design system.
+*/
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-primary);
+  font-weight: 400;  /* Default to regular weight */
+  background-color: #ffffff; /* Adjust as needed for design consistency */
+  color: #000000;    /* High contrast default text color */
+}
+
+/* -----------------------------------------------------------------------------
+   Heading Styles
+   -----------------------------------------------------------------------------
+   Defines heading elements with a focus on clarity, hierarchy, and accessibility.
+   Each heading uses a font-weight consistent with typical design system guidelines.
+----------------------------------------------------------------------------- */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0 0 1rem 0;
+  font-family: var(--font-primary);
+  line-height: 1.2;
+  color: inherit;
+}
+
+h1 {
+  font-size: 2rem; /* Example: 32px in standard scaling */
+  font-weight: 700; 
+}
+
+h2 {
+  font-size: 1.75rem; /* Example: 28px */
+  font-weight: 700; 
+}
+
+h3 {
+  font-size: 1.5rem; /* Example: 24px */
+  font-weight: 500; 
+}
+
+h4 {
+  font-size: 1.25rem; /* Example: 20px */
+  font-weight: 500; 
+}
+
+h5 {
+  font-size: 1.125rem; /* Example: 18px */
+  font-weight: 500; 
+}
+
+h6 {
+  font-size: 1rem; /* Example: 16px */
+  font-weight: 500; 
+}
+
+/* -----------------------------------------------------------------------------
+   Utility Classes for Font Families
+   -----------------------------------------------------------------------------
+   The following utility classes allow selective usage of SF Pro over the 
+   primary Inter-based stack or vice versa, should a design call for it.
+----------------------------------------------------------------------------- */
+
+/* Use Inter specifically */
+.font-inter {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 
+               'Roboto', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Use SF Pro specifically */
+.font-sfpro {
+  font-family: 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', 
+               'Roboto', 'Helvetica Neue', Arial, sans-serif;
+}
