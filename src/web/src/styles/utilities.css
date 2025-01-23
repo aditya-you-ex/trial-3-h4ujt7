@@ -1,0 +1,957 @@
+/* =============================================================================
+   TaskStream AI - Utility CSS Classes
+   -----------------------------------------------------------------------------
+   This file provides a comprehensive set of atomic, single-purpose styling
+   classes for rapid UI development, consistent component styling, and
+   responsive design. All classes draw upon the design tokens defined in
+   variables.css (imported below), ensuring adherence to the design system
+   specifications and streamlined collaboration across the codebase.
+============================================================================= */
+
+@import './variables.css';
+
+/* =============================================================================
+   1) LAYOUT UTILITIES
+   - Provides display and flex-direction utilities for arranging content
+============================================================================= */
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+/* =============================================================================
+   2) SPACING UTILITIES
+   - Padding, margin, and gap classes keyed to design system spacing variables
+============================================================================= */
+
+.gap-sm {
+  gap: var(--spacing-sm);
+}
+
+.gap-md {
+  gap: var(--spacing-md);
+}
+
+.gap-lg {
+  gap: var(--spacing-lg);
+}
+
+.p-sm {
+  padding: var(--spacing-sm);
+}
+
+.p-md {
+  padding: var(--spacing-md);
+}
+
+.p-lg {
+  padding: var(--spacing-lg);
+}
+
+.m-sm {
+  margin: var(--spacing-sm);
+}
+
+.m-md {
+  margin: var(--spacing-md);
+}
+
+.m-lg {
+  margin: var(--spacing-lg);
+}
+
+/* =============================================================================
+   3) TYPOGRAPHY UTILITIES
+   - Font sizes and weights reflecting the design system's type scale
+============================================================================= */
+
+.text-sm {
+  font-size: var(--font-size-sm);
+}
+
+.text-md {
+  font-size: var(--font-size-md);
+}
+
+.text-lg {
+  font-size: var(--font-size-lg);
+}
+
+.font-bold {
+  font-weight: var(--font-weight-bold);
+}
+
+.font-medium {
+  font-weight: var(--font-weight-medium);
+}
+
+/* =============================================================================
+   4) COLOR UTILITIES
+   - Text and background color classes for primary, secondary, success, and error
+============================================================================= */
+
+.text-primary {
+  color: var(--color-primary);
+}
+
+.text-secondary {
+  color: var(--color-secondary);
+}
+
+.text-success {
+  color: var(--color-success);
+}
+
+.text-error {
+  color: var(--color-error);
+}
+
+.bg-primary {
+  background-color: var(--color-primary);
+}
+
+.bg-secondary {
+  background-color: var(--color-secondary);
+}
+
+.bg-success {
+  background-color: var(--color-success);
+}
+
+.bg-error {
+  background-color: var(--color-error);
+}
+
+/* =============================================================================
+   5) EFFECT UTILITIES
+   - Border radius and shadow classes for adding depth and rounded corners
+============================================================================= */
+
+.rounded-sm {
+  border-radius: var(--border-radius-sm);
+}
+
+.rounded-md {
+  border-radius: var(--border-radius-md);
+}
+
+.rounded-lg {
+  border-radius: var(--border-radius-lg);
+}
+
+.shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+.shadow-md {
+  box-shadow: var(--shadow-md);
+}
+
+.shadow-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+/* =============================================================================
+   6) GRID UTILITIES
+   - Utility classes for establishing grid layouts and defining columns
+============================================================================= */
+
+.grid {
+  display: grid;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid-cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.grid-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* =============================================================================
+   7) DISPLAY UTILITIES
+   - Controls element display properties
+============================================================================= */
+
+.hidden {
+  display: none;
+}
+
+.block {
+  display: block;
+}
+
+.inline-block {
+  display: inline-block;
+}
+
+/* =============================================================================
+   8) POSITIONING UTILITIES
+   - Applied to position elements using relative, absolute, or fixed positioning
+============================================================================= */
+
+.relative {
+  position: relative;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.fixed {
+  position: fixed;
+}
+
+/* =============================================================================
+   9) SIZING UTILITIES
+   - Common width and height classes for flexible sizing
+============================================================================= */
+
+.w-full {
+  width: 100%;
+}
+
+.h-full {
+  height: 100%;
+}
+
+/* =============================================================================
+   10) Z-INDEX UTILITIES
+   - Layers elements based on design system z-index definitions
+============================================================================= */
+
+.z-0 {
+  z-index: var(--z-index-0);
+}
+
+.z-10 {
+  z-index: var(--z-index-10);
+}
+
+.z-20 {
+  z-index: var(--z-index-20);
+}
+
+.z-30 {
+  z-index: var(--z-index-30);
+}
+
+.z-40 {
+  z-index: var(--z-index-40);
+}
+
+.z-50 {
+  z-index: var(--z-index-50);
+}
+
+/* =============================================================================
+   11) TRANSITION UTILITIES
+   - Applies preset transition durations for interaction feedback
+============================================================================= */
+
+.transition-fast {
+  transition: all var(--transition-fast);
+}
+
+.transition-medium {
+  transition: all var(--transition-default);
+}
+
+.transition-slow {
+  transition: all var(--transition-slow);
+}
+
+/* =============================================================================
+   12) CONTAINER UTILITIES
+   - Sets container widths for responsive layouts
+============================================================================= */
+
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--container-padding);
+  padding-right: var(--container-padding);
+}
+
+.container-sm {
+  max-width: var(--breakpoint-tablet);
+}
+
+.container-md {
+  max-width: var(--breakpoint-desktop);
+}
+
+.container-lg {
+  max-width: var(--container-max-width);
+}
+
+/* =============================================================================
+   13) OVERFLOW UTILITIES
+   - Controls scroll and truncation behaviors
+============================================================================= */
+
+.overflow-hidden {
+  overflow: hidden;
+}
+
+.overflow-auto {
+  overflow: auto;
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
+}
+
+.overflow-x-auto {
+  overflow-x: auto;
+}
+
+.overflow-y-hidden {
+  overflow-y: hidden;
+}
+
+.overflow-x-hidden {
+  overflow-x: hidden;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =============================================================================
+   RESPONSIVE DESIGN BREAKPOINTS
+   - Utility classes for tablet (md), desktop (lg), and wide (xl) viewports
+   - Applies overrides when min-width constraints are satisfied
+============================================================================= */
+
+@media (min-width: var(--breakpoint-tablet)) {
+  /* Tablet .md:\ class versions */
+  .md\:flex {
+    display: flex;
+  }
+  .md\:flex-col {
+    display: flex;
+    flex-direction: column;
+  }
+  .md\:block {
+    display: block;
+  }
+  .md\:inline-block {
+    display: inline-block;
+  }
+  .md\:hidden {
+    display: none;
+  }
+  .md\:w-full {
+    width: 100%;
+  }
+  .md\:h-full {
+    height: 100%;
+  }
+  .md\:grid {
+    display: grid;
+  }
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .md\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .md\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .md\:items-center {
+    align-items: center;
+  }
+  .md\:justify-between {
+    justify-content: space-between;
+  }
+  .md\:gap-sm {
+    gap: var(--spacing-sm);
+  }
+  .md\:gap-md {
+    gap: var(--spacing-md);
+  }
+  .md\:gap-lg {
+    gap: var(--spacing-lg);
+  }
+  .md\:p-sm {
+    padding: var(--spacing-sm);
+  }
+  .md\:p-md {
+    padding: var(--spacing-md);
+  }
+  .md\:p-lg {
+    padding: var(--spacing-lg);
+  }
+  .md\:m-sm {
+    margin: var(--spacing-sm);
+  }
+  .md\:m-md {
+    margin: var(--spacing-md);
+  }
+  .md\:m-lg {
+    margin: var(--spacing-lg);
+  }
+  .md\:text-sm {
+    font-size: var(--font-size-sm);
+  }
+  .md\:text-md {
+    font-size: var(--font-size-md);
+  }
+  .md\:text-lg {
+    font-size: var(--font-size-lg);
+  }
+  .md\:font-bold {
+    font-weight: var(--font-weight-bold);
+  }
+  .md\:font-medium {
+    font-weight: var(--font-weight-medium);
+  }
+  .md\:bg-primary {
+    background-color: var(--color-primary);
+  }
+  .md\:bg-secondary {
+    background-color: var(--color-secondary);
+  }
+  .md\:bg-success {
+    background-color: var(--color-success);
+  }
+  .md\:bg-error {
+    background-color: var(--color-error);
+  }
+  .md\:text-primary {
+    color: var(--color-primary);
+  }
+  .md\:text-secondary {
+    color: var(--color-secondary);
+  }
+  .md\:text-success {
+    color: var(--color-success);
+  }
+  .md\:text-error {
+    color: var(--color-error);
+  }
+  .md\:rounded-sm {
+    border-radius: var(--border-radius-sm);
+  }
+  .md\:rounded-md {
+    border-radius: var(--border-radius-md);
+  }
+  .md\:rounded-lg {
+    border-radius: var(--border-radius-lg);
+  }
+  .md\:shadow-sm {
+    box-shadow: var(--shadow-sm);
+  }
+  .md\:shadow-md {
+    box-shadow: var(--shadow-md);
+  }
+  .md\:shadow-lg {
+    box-shadow: var(--shadow-lg);
+  }
+  .md\:relative {
+    position: relative;
+  }
+  .md\:absolute {
+    position: absolute;
+  }
+  .md\:fixed {
+    position: fixed;
+  }
+  .md\:z-0 {
+    z-index: var(--z-index-0);
+  }
+  .md\:z-10 {
+    z-index: var(--z-index-10);
+  }
+  .md\:z-20 {
+    z-index: var(--z-index-20);
+  }
+  .md\:z-30 {
+    z-index: var(--z-index-30);
+  }
+  .md\:z-40 {
+    z-index: var(--z-index-40);
+  }
+  .md\:z-50 {
+    z-index: var(--z-index-50);
+  }
+  .md\:transition-fast {
+    transition: all var(--transition-fast);
+  }
+  .md\:transition-medium {
+    transition: all var(--transition-default);
+  }
+  .md\:transition-slow {
+    transition: all var(--transition-slow);
+  }
+  .md\:container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: var(--container-padding);
+    padding-right: var(--container-padding);
+  }
+  .md\:container-sm {
+    max-width: var(--breakpoint-tablet);
+  }
+  .md\:container-md {
+    max-width: var(--breakpoint-desktop);
+  }
+  .md\:container-lg {
+    max-width: var(--container-max-width);
+  }
+  .md\:overflow-hidden {
+    overflow: hidden;
+  }
+  .md\:overflow-auto {
+    overflow: auto;
+  }
+  .md\:overflow-y-auto {
+    overflow-y: auto;
+  }
+  .md\:overflow-x-auto {
+    overflow-x: auto;
+  }
+  .md\:overflow-y-hidden {
+    overflow-y: hidden;
+  }
+  .md\:overflow-x-hidden {
+    overflow-x: hidden;
+  }
+  .md\:truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: var(--breakpoint-desktop)) {
+  /* Desktop .lg:\ class versions */
+  .lg\:flex {
+    display: flex;
+  }
+  .lg\:flex-col {
+    display: flex;
+    flex-direction: column;
+  }
+  .lg\:block {
+    display: block;
+  }
+  .lg\:inline-block {
+    display: inline-block;
+  }
+  .lg\:hidden {
+    display: none;
+  }
+  .lg\:w-full {
+    width: 100%;
+  }
+  .lg\:h-full {
+    height: 100%;
+  }
+  .lg\:grid {
+    display: grid;
+  }
+  .lg\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lg\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .lg\:items-center {
+    align-items: center;
+  }
+  .lg\:justify-between {
+    justify-content: space-between;
+  }
+  .lg\:gap-sm {
+    gap: var(--spacing-sm);
+  }
+  .lg\:gap-md {
+    gap: var(--spacing-md);
+  }
+  .lg\:gap-lg {
+    gap: var(--spacing-lg);
+  }
+  .lg\:p-sm {
+    padding: var(--spacing-sm);
+  }
+  .lg\:p-md {
+    padding: var(--spacing-md);
+  }
+  .lg\:p-lg {
+    padding: var(--spacing-lg);
+  }
+  .lg\:m-sm {
+    margin: var(--spacing-sm);
+  }
+  .lg\:m-md {
+    margin: var(--spacing-md);
+  }
+  .lg\:m-lg {
+    margin: var(--spacing-lg);
+  }
+  .lg\:text-sm {
+    font-size: var(--font-size-sm);
+  }
+  .lg\:text-md {
+    font-size: var(--font-size-md);
+  }
+  .lg\:text-lg {
+    font-size: var(--font-size-lg);
+  }
+  .lg\:font-bold {
+    font-weight: var(--font-weight-bold);
+  }
+  .lg\:font-medium {
+    font-weight: var(--font-weight-medium);
+  }
+  .lg\:bg-primary {
+    background-color: var(--color-primary);
+  }
+  .lg\:bg-secondary {
+    background-color: var(--color-secondary);
+  }
+  .lg\:bg-success {
+    background-color: var(--color-success);
+  }
+  .lg\:bg-error {
+    background-color: var(--color-error);
+  }
+  .lg\:text-primary {
+    color: var(--color-primary);
+  }
+  .lg\:text-secondary {
+    color: var(--color-secondary);
+  }
+  .lg\:text-success {
+    color: var(--color-success);
+  }
+  .lg\:text-error {
+    color: var(--color-error);
+  }
+  .lg\:rounded-sm {
+    border-radius: var(--border-radius-sm);
+  }
+  .lg\:rounded-md {
+    border-radius: var(--border-radius-md);
+  }
+  .lg\:rounded-lg {
+    border-radius: var(--border-radius-lg);
+  }
+  .lg\:shadow-sm {
+    box-shadow: var(--shadow-sm);
+  }
+  .lg\:shadow-md {
+    box-shadow: var(--shadow-md);
+  }
+  .lg\:shadow-lg {
+    box-shadow: var(--shadow-lg);
+  }
+  .lg\:relative {
+    position: relative;
+  }
+  .lg\:absolute {
+    position: absolute;
+  }
+  .lg\:fixed {
+    position: fixed;
+  }
+  .lg\:z-0 {
+    z-index: var(--z-index-0);
+  }
+  .lg\:z-10 {
+    z-index: var(--z-index-10);
+  }
+  .lg\:z-20 {
+    z-index: var(--z-index-20);
+  }
+  .lg\:z-30 {
+    z-index: var(--z-index-30);
+  }
+  .lg\:z-40 {
+    z-index: var(--z-index-40);
+  }
+  .lg\:z-50 {
+    z-index: var(--z-index-50);
+  }
+  .lg\:transition-fast {
+    transition: all var(--transition-fast);
+  }
+  .lg\:transition-medium {
+    transition: all var(--transition-default);
+  }
+  .lg\:transition-slow {
+    transition: all var(--transition-slow);
+  }
+  .lg\:container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: var(--container-padding);
+    padding-right: var(--container-padding);
+  }
+  .lg\:container-sm {
+    max-width: var(--breakpoint-tablet);
+  }
+  .lg\:container-md {
+    max-width: var(--breakpoint-desktop);
+  }
+  .lg\:container-lg {
+    max-width: var(--container-max-width);
+  }
+  .lg\:overflow-hidden {
+    overflow: hidden;
+  }
+  .lg\:overflow-auto {
+    overflow: auto;
+  }
+  .lg\:overflow-y-auto {
+    overflow-y: auto;
+  }
+  .lg\:overflow-x-auto {
+    overflow-x: auto;
+  }
+  .lg\:overflow-y-hidden {
+    overflow-y: hidden;
+  }
+  .lg\:overflow-x-hidden {
+    overflow-x: hidden;
+  }
+  .lg\:truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: var(--breakpoint-wide)) {
+  /* Wide .xl:\ class versions */
+  .xl\:flex {
+    display: flex;
+  }
+  .xl\:flex-col {
+    display: flex;
+    flex-direction: column;
+  }
+  .xl\:block {
+    display: block;
+  }
+  .xl\:inline-block {
+    display: inline-block;
+  }
+  .xl\:hidden {
+    display: none;
+  }
+  .xl\:w-full {
+    width: 100%;
+  }
+  .xl\:h-full {
+    height: 100%;
+  }
+  .xl\:grid {
+    display: grid;
+  }
+  .xl\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .xl\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .xl\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .xl\:items-center {
+    align-items: center;
+  }
+  .xl\:justify-between {
+    justify-content: space-between;
+  }
+  .xl\:gap-sm {
+    gap: var(--spacing-sm);
+  }
+  .xl\:gap-md {
+    gap: var(--spacing-md);
+  }
+  .xl\:gap-lg {
+    gap: var(--spacing-lg);
+  }
+  .xl\:p-sm {
+    padding: var(--spacing-sm);
+  }
+  .xl\:p-md {
+    padding: var(--spacing-md);
+  }
+  .xl\:p-lg {
+    padding: var(--spacing-lg);
+  }
+  .xl\:m-sm {
+    margin: var(--spacing-sm);
+  }
+  .xl\:m-md {
+    margin: var(--spacing-md);
+  }
+  .xl\:m-lg {
+    margin: var(--spacing-lg);
+  }
+  .xl\:text-sm {
+    font-size: var(--font-size-sm);
+  }
+  .xl\:text-md {
+    font-size: var(--font-size-md);
+  }
+  .xl\:text-lg {
+    font-size: var(--font-size-lg);
+  }
+  .xl\:font-bold {
+    font-weight: var(--font-weight-bold);
+  }
+  .xl\:font-medium {
+    font-weight: var(--font-weight-medium);
+  }
+  .xl\:bg-primary {
+    background-color: var(--color-primary);
+  }
+  .xl\:bg-secondary {
+    background-color: var(--color-secondary);
+  }
+  .xl\:bg-success {
+    background-color: var(--color-success);
+  }
+  .xl\:bg-error {
+    background-color: var(--color-error);
+  }
+  .xl\:text-primary {
+    color: var(--color-primary);
+  }
+  .xl\:text-secondary {
+    color: var(--color-secondary);
+  }
+  .xl\:text-success {
+    color: var(--color-success);
+  }
+  .xl\:text-error {
+    color: var(--color-error);
+  }
+  .xl\:rounded-sm {
+    border-radius: var(--border-radius-sm);
+  }
+  .xl\:rounded-md {
+    border-radius: var(--border-radius-md);
+  }
+  .xl\:rounded-lg {
+    border-radius: var(--border-radius-lg);
+  }
+  .xl\:shadow-sm {
+    box-shadow: var(--shadow-sm);
+  }
+  .xl\:shadow-md {
+    box-shadow: var(--shadow-md);
+  }
+  .xl\:shadow-lg {
+    box-shadow: var(--shadow-lg);
+  }
+  .xl\:relative {
+    position: relative;
+  }
+  .xl\:absolute {
+    position: absolute;
+  }
+  .xl\:fixed {
+    position: fixed;
+  }
+  .xl\:z-0 {
+    z-index: var(--z-index-0);
+  }
+  .xl\:z-10 {
+    z-index: var(--z-index-10);
+  }
+  .xl\:z-20 {
+    z-index: var(--z-index-20);
+  }
+  .xl\:z-30 {
+    z-index: var(--z-index-30);
+  }
+  .xl\:z-40 {
+    z-index: var(--z-index-40);
+  }
+  .xl\:z-50 {
+    z-index: var(--z-index-50);
+  }
+  .xl\:transition-fast {
+    transition: all var(--transition-fast);
+  }
+  .xl\:transition-medium {
+    transition: all var(--transition-default);
+  }
+  .xl\:transition-slow {
+    transition: all var(--transition-slow);
+  }
+  .xl\:container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: var(--container-padding);
+    padding-right: var(--container-padding);
+  }
+  .xl\:container-sm {
+    max-width: var(--breakpoint-tablet);
+  }
+  .xl\:container-md {
+    max-width: var(--breakpoint-desktop);
+  }
+  .xl\:container-lg {
+    max-width: var(--container-max-width);
+  }
+  .xl\:overflow-hidden {
+    overflow: hidden;
+  }
+  .xl\:overflow-auto {
+    overflow: auto;
+  }
+  .xl\:overflow-y-auto {
+    overflow-y: auto;
+  }
+  .xl\:overflow-x-auto {
+    overflow-x: auto;
+  }
+  .xl\:overflow-y-hidden {
+    overflow-y: hidden;
+  }
+  .xl\:overflow-x-hidden {
+    overflow-x: hidden;
+  }
+  .xl\:truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* =============================================================================
+   END OF UTILITY CLASSES
+============================================================================= */
