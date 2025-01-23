@@ -1,0 +1,141 @@
+/*
+  Prettier Configuration File for the React/TypeScript Web Codebase
+  ----------------------------------------------------------------
+  This configuration ensures a consistent and enterprise-grade code style
+  throughout the frontend. It integrates with IDEs/editors for auto-formatting
+  on save and enforces uniform styling across all TypeScript and React files.
+
+  External Library:
+  - Prettier ^2.8.0 (Professional-grade code formatting tool)
+
+  Exported Object:
+  - prettierConfig: Comprehensive configuration object containing
+    every rule specified in the technical requirements, facilitating
+    advanced formatting consistency.
+*/
+
+/**
+ * Exporting the comprehensive Prettier configuration object as "prettierConfig".
+ */
+module.exports = {
+  prettierConfig: {
+    /**
+     * printWidth (number)
+     * Maximum line length before wrapping code.
+     * Encourages legible and maintainable code across the team.
+     */
+    printWidth: 88,
+
+    /**
+     * tabWidth (number)
+     * Number of spaces per indentation level.
+     * Standardized to 2 for consistency across all project files.
+     */
+    tabWidth: 2,
+
+    /**
+     * useTabs (boolean)
+     * Whether to indent using tabs instead of spaces.
+     * False to enforce spaces for alignment consistency.
+     */
+    useTabs: false,
+
+    /**
+     * semi (boolean)
+     * Whether to add semicolons at the ends of statements.
+     * True to maintain explicit statement termination.
+     */
+    semi: true,
+
+    /**
+     * singleQuote (boolean)
+     * Use single quotes instead of double quotes wherever possible.
+     * True to keep code style consistent and minimize escape overhead.
+     */
+    singleQuote: true,
+
+    /**
+     * trailingComma (string)
+     * Adds trailing commas wherever possible.
+     * 'es5' preserves trailing commas for arrays, objects, etc. (ES5-compliant)
+     */
+    trailingComma: 'es5',
+
+    /**
+     * bracketSpacing (boolean)
+     * Controls spacing between brackets in object literals.
+     * True for a readable style, e.g. { key: value }.
+     */
+    bracketSpacing: true,
+
+    /**
+     * arrowParens (string)
+     * Decide how to handle parentheses around a sole arrow function parameter.
+     * 'avoid' omits parentheses when not strictly required for clarity.
+     */
+    arrowParens: 'avoid',
+
+    /**
+     * endOfLine (string)
+     * Enforces a specific end-of-line style.
+     * 'lf' is recommended for cross-platform compatibility.
+     */
+    endOfLine: 'lf',
+
+    /**
+     * jsxSingleQuote (boolean)
+     * Use single quotes instead of double quotes in JSX.
+     * False to adhere to common React conventions with double quotes in JSX.
+     */
+    jsxSingleQuote: false,
+
+    /**
+     * jsxBracketSameLine (boolean)
+     * Put the closing bracket of a JSX element on the same line as the opening tag.
+     * False to place closing brackets on their own line, improving diffs.
+     */
+    jsxBracketSameLine: false,
+
+    /**
+     * parser (string)
+     * Specify which parser to use for code formatting.
+     * 'typescript' for full TS/JSX support in a TypeScript project.
+     */
+    parser: 'typescript',
+
+    /**
+     * requirePragma (boolean)
+     * Prettier only formats files that contain a special comment, known as a pragma.
+     * False to allow formatting of all files by default.
+     */
+    requirePragma: false,
+
+    /**
+     * insertPragma (boolean)
+     * Inserts a special @format marker at the top of files when formatting.
+     * False to avoid automatic insertion of the pragma comment.
+     */
+    insertPragma: false,
+
+    /**
+     * proseWrap (string)
+     * How Prettier decides to wrap prose (markdown, comments, etc.).
+     * 'preserve' leaves user-written markdown line wrapping intact.
+     */
+    proseWrap: 'preserve',
+
+    /**
+     * htmlWhitespaceSensitivity (string)
+     * How to handle whitespace in HTML files.
+     * 'css' respects the default CSS-defined display property.
+     */
+    htmlWhitespaceSensitivity: 'css',
+
+    /**
+     * embeddedLanguageFormatting (string)
+     * Controls how Prettier formats code embedded in other file types.
+     * 'auto' attempts to format embedded code automatically whenever possible.
+     */
+    embeddedLanguageFormatting: 'auto',
+  },
+};
