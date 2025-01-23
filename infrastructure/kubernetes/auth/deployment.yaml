@@ -1,0 +1,315 @@
+################################################################################
+# KUBERNETES DEPLOYMENT CONFIGURATION FOR THE TASKSTREAM AI AUTHENTICATION SERVICE
+# ------------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This file defines the Deployment resource for the TaskStream AI
+#   authentication service. It manages pod lifecycles, rolling updates, container
+#   specifications, security contexts, and integration with metrics/monitoring.
+#
+# RELEVANT TECHNICAL SPECIFICATIONS:
+#   1) Multi-Region AWS Environment (Tech Spec 8.1 Deployment Environment)
+#      - Ensures high availability through multiple replicas and rolling updates.
+#      - Uses robust security contexts and resource constraints for production.
+#
+#   2) Container Orchestration (Tech Spec 8.4 Orchestration)
+#      - Defines how pods are scheduled (affinity, tolerations).
+#      - Integrates with an external HorizontalPodAutoscaler (auth-service-hpa)
+#        that scales from min 5 to max 20 replicas, referencing the "scaleTargetRef"
+#        matching this Deployment.
+#
+#   3) Security Configuration (Tech Spec 7.3 Security Protocols)
+#      - Enforces runAsNonRoot, drops all capabilities, read-only root filesystem.
+#      - Leverages node affinity and taints/tolerations (node-role.kubernetes.io/auth).
+#      - Uses readiness, liveness, and startup probes to ensure stable rolling updates
+#        and reduce downtime.
+#
+# EXTERNAL IMPORTS (IE2):
+#   - aws-auth, version 1.0.0:
+#     # This external module (aws-eks-charts@1.0.0) provides EKS authentication and
+#     # IAM integration for pods, enabling advanced security and identity management.
+#
+# INTERNAL IMPORTS (IE1):
+#   - service.yaml (auth-service):
+#     # Exposes the authentication service on port 3001 within cluster scope.
+#   - hpa.yaml (auth-service-hpa):
+#     # Dynamically scales pod replicas based on CPU utilization, referencing this
+#     # deployment by name: "auth-service".
+#
+# EXPORTS (IE3):
+#   - Deployment (kubernetes-resource)
+#     - metadata (object)
+#     - spec (object)
+#     Purpose: Provide a robust, enterprise-ready deployment manifest for the
+#     TaskStream AI authentication service.
+################################################################################
+
+apiVersion: apps/v1
+kind: Deployment
+
+################################################################################
+# Export: Deployment.metadata
+# Contains identifying information for the auth-service Deployment
+################################################################################
+metadata:
+  # --------------------------------------------------------------------------
+  # Specifies the unique name of this deployment within the "taskstream"
+  # namespace. This name is also referenced by the HorizontalPodAutoscaler
+  # (auth-service-hpa).
+  # --------------------------------------------------------------------------
+  name: auth-service
+  namespace: taskstream
+
+  # --------------------------------------------------------------------------
+  # Labels group resources logically and are critical to the orchestration
+  # strategy (Tech Spec 8.4). They also map to the service.yaml "selector" for
+  # consistent network routing.
+  # --------------------------------------------------------------------------
+  labels:
+    app: auth-service
+    component: authentication
+    part-of: taskstream
+    version: v1
+    managed-by: kubectl
+
+################################################################################
+# Export: Deployment.spec
+# Defines how many pods to run, the update strategy, and the podTemplate spec
+# (containers, security, environment, scheduling, etc.).
+################################################################################
+spec:
+  # --------------------------------------------------------------------------
+  # This sets the desired number of replicas. Note that the HPA (auth-service-hpa)
+  # will supersede this by scaling pods up/down between minReplicas=5 and
+  # maxReplicas=20 based on CPU usage. The initial desired count is 3.
+  # --------------------------------------------------------------------------
+  replicas: 3
+
+  # --------------------------------------------------------------------------
+  # RollingUpdate ensures zero downtime upgrades by incrementally updating pods.
+  # maxSurge=1 means at most one extra pod can be launched during an update, and
+  # maxUnavailable=0 ensures no pods are stopped before the new one is available.
+  # --------------------------------------------------------------------------
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  # --------------------------------------------------------------------------
+  # Selector must match the labels in the Pod template so that the Deployment
+  # can manage the correct group of pods. This ties in with the Service resource
+  # in service.yaml for stable DNS-based service discovery.
+  # --------------------------------------------------------------------------
+  selector:
+    matchLabels:
+      app: auth-service
+
+  # --------------------------------------------------------------------------
+  # Template section describing the pod specification, including metadata
+  # (labels, annotations) and the containers themselves (with security contexts,
+  # resource requests, environment variables, etc.).
+  # --------------------------------------------------------------------------
+  template:
+    metadata:
+      labels:
+        app: auth-service
+        component: authentication
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3001"
+        prometheus.io/path: "/metrics"
+
+        # ----------------------------------------------------------------------
+        # checksum/config can be used for triggering pod restarts through
+        # rolling updates whenever the referenced config changes, ensuring
+        # up-to-date environment settings or secrets are loaded.
+        # ----------------------------------------------------------------------
+        checksum/config: "${CONFIG_CHECKSUM}"
+
+        # ----------------------------------------------------------------------
+        # Defines seccomp context for restricting system calls. 
+        # "runtime/default" follows best-practice security guidelines.
+        # ----------------------------------------------------------------------
+        security.policy/seccomp: "runtime/default"
+
+        # ----------------------------------------------------------------------
+        # Mark these pods as safe-to-evict for the cluster-autoscaler
+        # (kubernetes.io) so that nodes can be balanced or downsized properly.
+        # ----------------------------------------------------------------------
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+
+    spec:
+      # ------------------------------------------------------------------------
+      # Runs pods as non-root, further restricting privileges in adherence to
+      # recommended security standards (Tech Spec 7.3).
+      # ------------------------------------------------------------------------
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      # ------------------------------------------------------------------------
+      # Declares which Kubernetes Service Account the pods should use. This can
+      # be associated with IAM roles if IRSA is enabled (imported from
+      # aws-auth@1.0.0 via EKS).
+      # ------------------------------------------------------------------------
+      serviceAccountName: auth-service-account
+
+      # ------------------------------------------------------------------------
+      # Pod container definitions. For the authentication service, we define a
+      # single container that listens on ports 3001 (main HTTP) and 9090
+      # (options for advanced metrics).
+      # ------------------------------------------------------------------------
+      containers:
+        - name: auth-service
+          image: "taskstream/auth-service:latest"
+          imagePullPolicy: Always
+
+          # --------------------------------------------------------------------
+          # Exposes two ports within the container:
+          # 1) Application port (3001) for the main authentication endpoint.
+          # 2) Internal port (9090) for advanced metrics if needed.
+          # --------------------------------------------------------------------
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+
+          # --------------------------------------------------------------------
+          # Environment variables used by the auth-service container. They
+          # include references to secret values (db-url) and configMap values
+          # (AWS region). Additionally, sets standard environment variables for
+          # Node.js production mode.
+          # --------------------------------------------------------------------
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: AUTH_SERVICE_PORT
+              value: "3001"
+            - name: AUTH_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: db-url
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: aws-config
+                  key: region
+
+          # --------------------------------------------------------------------
+          # Resource requests and limits:
+          #  - Requests: minimum guaranteed resources (500m CPU, 512Mi mem).
+          #  - Limits: maximum resources for container usage (1000m CPU, 1Gi mem).
+          # Ensures proper scheduling and capacity planning across the cluster.
+          # --------------------------------------------------------------------
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+          # --------------------------------------------------------------------
+          # Liveness probe ensures the container is still functioning by pinging
+          # /health. If it fails repeatedly, Kubernetes will restart the pod.
+          # --------------------------------------------------------------------
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # --------------------------------------------------------------------
+          # Readiness probe checks whether the container is prepared to receive
+          # traffic. Routes are only forwarded to pods passing readiness checks.
+          # --------------------------------------------------------------------
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3001
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+
+          # --------------------------------------------------------------------
+          # Startup probe is used to determine if the container application has
+          # started properly. If it fails too many times, the container is
+          # considered unhealthy and restarted.
+          # --------------------------------------------------------------------
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+
+          # --------------------------------------------------------------------
+          # Additional container security context:
+          #  - Disallow privilege escalation
+          #  - Mark root filesystem as read-only
+          #  - Force runAsNonRoot with user 1000
+          #  - Drop all capabilities
+          # --------------------------------------------------------------------
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+
+      # ------------------------------------------------------------------------
+      # Affinity rules to prefer spreading the pods across different nodes:
+      #  - PodAntiAffinity to avoid putting multiple auth pods on the same node
+      #  - NodeAffinity to ensure the pods schedule only onto nodes labeled
+      #    "node-role.kubernetes.io/auth"
+      # ------------------------------------------------------------------------
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - auth-service
+                topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/auth
+                    operator: Exists
+
+      # ------------------------------------------------------------------------
+      # Tolerations matching "node-role.kubernetes.io/auth" to enable scheduling
+      # on specialized nodes that require this key to be present. This ensures
+      # that only authorized nodes run the authentication service pods.
+      # ------------------------------------------------------------------------
+      tolerations:
+        - key: "node-role.kubernetes.io/auth"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+      # ------------------------------------------------------------------------
+      # Graceful shutdown period to allow up to 60 seconds for the container to
+      # terminate gracefully before a force kill is issued.
+      # ------------------------------------------------------------------------
+      terminationGracePeriodSeconds: 60
