@@ -1,0 +1,115 @@
+################################################################################
+# Kubernetes Service Configuration for the TaskStream AI Authentication Service
+# ------------------------------------------------------------------------------
+# This file defines the Service resource responsible for exposing the
+# authentication service within the "taskstream" namespace. It addresses the
+# following key requirements from the technical specification:
+#
+# 1) Authentication Service Networking (Tech Spec 8.1 Deployment Environment):
+#    - Configures secure, internal-only network exposure in a multi-region AWS
+#      deployment.
+#    - Defines an internal load balancer approach, ensuring private traffic
+#      routing for the authentication service.
+#
+# 2) Service Discovery (Tech Spec 8.4 Orchestration):
+#    - Utilizes Kubernetes label selectors ("app: auth-service", "component:
+#      authentication") for automatic pod discovery.
+#    - Maintains "sessionAffinity: None" while still enabling stable load
+#      balancing through the internal AWS network load balancer.
+#
+# 3) Security Protocols (Tech Spec 7.3 Security Protocols):
+#    - Employs "ClusterIP" type for namespace isolation, limiting external
+#      exposure.
+#    - Uses specific annotations for controlling internal AWS load balancer
+#      features aligned with secure network policies.
+#
+# 4) Monitoring Integration (Tech Spec 8.4 Orchestration):
+#    - Enables Prometheus metrics scraping via annotations:
+#      "prometheus.io/scrape: 'true'", "prometheus.io/port: '3001'", and
+#      "prometheus.io/path: '/metrics'".
+################################################################################
+
+apiVersion: v1
+kind: Service
+metadata:
+  # --------------------------------------------------------------------------
+  # The name of the service within the Kubernetes cluster. It also ensures
+  # relevant resource grouping under the "taskstream" namespace.
+  # --------------------------------------------------------------------------
+  name: auth-service
+  namespace: taskstream
+
+  # --------------------------------------------------------------------------
+  # Labels for organizational and environment-specific identification. These
+  # labels are essential for grouping, rolling updates, and consistent
+  # management of resources within the environment.
+  # --------------------------------------------------------------------------
+  labels:
+    app: auth-service
+    component: authentication
+    part-of: taskstream
+    tier: backend
+    managed-by: kubernetes
+    environment: production
+
+  # --------------------------------------------------------------------------
+  # Annotations providing:
+  #  - Internal-only load balancer specification
+  #  - Network load balancer (NLB) configuration
+  #  - Cross-zone load balancing for improved performance
+  #  - Prometheus scraping configuration for metrics monitoring
+  # --------------------------------------------------------------------------
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3001"
+    prometheus.io/path: "/metrics"
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+
+spec:
+  # --------------------------------------------------------------------------
+  # Service type "ClusterIP" ensures that the service is only reachable within
+  # the cluster (and in this scenario, also made private via AWS load balancer
+  # annotations for a secure, internal-only exposure).
+  # --------------------------------------------------------------------------
+  type: ClusterIP
+
+  # --------------------------------------------------------------------------
+  # Configuration of published ports. This authentication service listens on
+  # port 3001, and we map the same port internally for clarity and consistency.
+  # --------------------------------------------------------------------------
+  ports:
+    - port: 3001
+      targetPort: 3001
+      protocol: TCP
+      name: http-auth
+
+  # --------------------------------------------------------------------------
+  # The label selector that matches the pods (auth service pods) to be exposed
+  # by this service. These pods should carry the same "app" and "component"
+  # labels.
+  # --------------------------------------------------------------------------
+  selector:
+    app: auth-service
+    component: authentication
+
+  # --------------------------------------------------------------------------
+  # Disables sticky sessions by setting "sessionAffinity" to "None". This allows
+  # load balancing across all available authentication pods without session
+  # pinning.
+  # --------------------------------------------------------------------------
+  sessionAffinity: None
+
+  # --------------------------------------------------------------------------
+  # "publishNotReadyAddresses" set to false ensures that only ready pods
+  # receive traffic, adhering to best practices for stable service discovery.
+  # --------------------------------------------------------------------------
+  publishNotReadyAddresses: false
+
+  # --------------------------------------------------------------------------
+  # "internalTrafficPolicy: Cluster" routes internal traffic to all endpoints
+  # within the cluster, aligning with the internal-only design for the
+  # authentication service.
+  # --------------------------------------------------------------------------
+  internalTrafficPolicy: Cluster
