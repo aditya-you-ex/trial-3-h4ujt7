@@ -1,0 +1,413 @@
+################################################################################
+# File: projects.yaml
+# Location: src/backend/api/openapi/schemas/projects.yaml
+#
+# Description:
+#   This file defines the comprehensive OpenAPI 3.0.3 schemas for project-related
+#   operations in the TaskStream AI platform. It includes YAML representations of:
+#     - ProjectSchema          (Enhanced schema for project entities)
+#     - ProjectCreateSchema    (Schema for creating new projects)
+#     - ProjectUpdateSchema    (Schema for updating existing projects)
+#   Additionally, it exports supportive sub-schemas for ProjectStatus, TaskReference,
+#   and ResourceAnalytics. These schemas align with the interface definitions from
+#   project.interface.ts and the shared metadata from common.yaml.
+#
+# External References:
+#   - Validated via openapi-types@^12.1.0 for schema correctness.
+#   - Uses js-yaml@^4.1.0 utilities for YAML processing in build pipelines.
+#
+# Import Details:
+#   - Common metadata and error definitions are imported from:
+#     common.yaml#/components/schemas/MetadataSchema
+#     common.yaml#/components/schemas/ErrorSchema
+#     common.yaml#/components/schemas/PaginationSchema
+#
+# In accordance with:
+#   - Technical Specifications sections on Project Management and API Design
+#   - JSON specification for advanced validation rules, resource, and analytics tracking
+#
+# Extensive comments included to ensure maintainers have a clear understanding
+# of each schema element.
+################################################################################
+
+openapi: "3.0.3"
+info:
+  title: "TaskStream AI Project Schemas"
+  version: "1.0.0"
+  description: >
+    OpenAPI schema definitions for project-related endpoints, including project
+    creation, updates, resource management, analytics tracking, and validation.
+
+# No API paths are defined in this file; it only provides reusable schema components.
+paths: {}
+
+components:
+  ##############################################################################
+  # Main Schemas for Projects
+  ##############################################################################
+  schemas:
+
+    ##########################################################################
+    # ProjectStatus
+    # ------------------------------------------------------------------------
+    # Enumeration that captures valid project lifecycle statuses. This schema
+    # is referenced by ProjectSchema, ProjectCreateSchema, and ProjectUpdateSchema
+    # for consistent validation and state management.
+    ##########################################################################
+    ProjectStatus:
+      type: string
+      description: "Enumeration of possible project lifecycle statuses."
+      enum:
+        - PLANNING   # Project is in the planning stage
+        - ACTIVE     # Project is active and ongoing
+        - ON_HOLD    # Work on the project is temporarily paused
+        - COMPLETED  # Project is completed
+        - ARCHIVED   # Project is archived and no longer actively tracked
+
+    ##########################################################################
+    # TaskReference
+    # ------------------------------------------------------------------------
+    # Represents a minimal reference to a Task entity in the TaskStream AI system.
+    # Used to establish relationships between a Project and its tasks without
+    # requiring full task details.
+    ##########################################################################
+    TaskReference:
+      type: object
+      description: >
+        Lightweight pointer to a Task record. Facilitates project-task
+        relationships while deferring full task data loading to separate endpoints.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "Unique identifier for the referenced task."
+      required:
+        - id
+
+    ##########################################################################
+    # ResourceAnalytics
+    # ------------------------------------------------------------------------
+    # Captures resource-level usage metrics, including utilization percentages
+    # and efficiency. Utilized within projects to track resource allocation
+    # and performance over time.
+    ##########################################################################
+    ResourceAnalytics:
+      type: object
+      description: >
+        Describes utilization and efficiency metrics for a single resource
+        assigned to a project in TaskStream AI.
+      properties:
+        resourceId:
+          type: string
+          description: "Unique identifier of the resource (user, machine, etc.)."
+        utilization:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: >
+            Percentage indicating how heavily the resource is
+            utilized within the project's timeframe (0=unutilized, 100=fully utilized).
+        allocatedHours:
+          type: number
+          format: float
+          minimum: 0
+          description: >
+            Total hours allocated for this resource within the project scope.
+        actualHours:
+          type: number
+          format: float
+          minimum: 0
+          description: >
+            Actual hours tracked or reported for this resource within
+            the same period.
+        efficiency:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: >
+            Derived metric reflecting how efficiently the resource
+            utilized allocated time (e.g., (actualHours/allocatedHours)*100).
+
+    ##########################################################################
+    # ProjectSchema (EXPORTED)
+    # ------------------------------------------------------------------------
+    # A fully featured schema for a Project entity, incorporating resource
+    # tracking, analytics, tasks, and metadata. It enforces compliance with
+    # strict business rules, state validation, and advanced pagination options.
+    #
+    # Exported const members:
+    #  - type
+    #  - properties
+    #  - required
+    #  - validationRules
+    ##########################################################################
+    ProjectSchema:
+      # The primary schema definition type is 'object' for rich property sets.
+      type: object
+
+      # Additional enterprise-level validation or logic can be documented here.
+      # 'x-validationRules' is a custom extension field providing business logic.
+      x-validationRules:
+        dateConsistency: "endDate must be chronologically after startDate."
+        concurrencyControl: "metadata.version is used for optimistic locking."
+        resourceBudget: "resourcePool cannot exceed allocated organizational limits."
+        taskDependency: "Tasks referencing nonexistent IDs must be rejected."
+
+      properties:
+        schemaVersion:
+          type: integer
+          description: "Internal schema version for compatibility tracking."
+
+        id:
+          type: string
+          format: uuid
+          description: "Unique identifier for the project."
+
+        name:
+          type: string
+          minLength: 3
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9\\s\\-_.]+$"
+          description: >
+            Human-readable project name. Must be between 3 and 50
+            characters, allowing alphanumeric, space, dash, underscore, and period.
+
+        description:
+          type: string
+          x-descriptionFormat: markdown
+          description: >
+            Textual description of project goals, scope, or background.
+            Accepts Markdown formatting for rich text content.
+
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+
+        startDate:
+          type: string
+          format: date-time
+          description: "ISO 8601 start date of the project."
+
+        endDate:
+          type: string
+          format: date-time
+          description: "ISO 8601 end date of the project. Must be after startDate."
+
+        teamId:
+          type: string
+          format: uuid
+          description: >
+            Identifier for the team responsible for this project. Must map
+            to a valid Team record in the system.
+
+        resourcePool:
+          type: array
+          description: >
+            Collection of resource identifiers assigned to the project,
+            facilitating advanced allocation and capacity planning.
+          items:
+            type: string
+
+        analytics:
+          $ref: "#/components/schemas/ResourceAnalytics"
+
+        tasks:
+          type: array
+          description: "List of tasks (by reference) currently associated with the project."
+          items:
+            $ref: "#/components/schemas/TaskReference"
+
+        metadata:
+          # References the common metadata schema from common.yaml
+          $ref: "common.yaml#/components/schemas/MetadataSchema"
+
+        pagination:
+          # Incorporates advanced pagination parameters (limit, direction, sorting)
+          $ref: "common.yaml#/components/schemas/PaginationSchema"
+
+      required:
+        - id
+        - name
+        - status
+        - teamId
+        - analytics
+        - metadata
+
+      # Custom extension field providing references to publicly documented error cases.
+      x-errorResponses:
+        - $ref: "common.yaml#/components/schemas/ErrorSchema"
+
+    ##########################################################################
+    # ProjectCreateSchema (EXPORTED)
+    # ------------------------------------------------------------------------
+    # A specialized schema for creating new projects. Applies stricter rules
+    # to ensure required fields are populated, includes business-hour validation,
+    # and requires capacity checks before finalizing project setup.
+    #
+    # Exported const members:
+    #  - type
+    #  - properties
+    #  - required
+    #  - businessRules
+    ##########################################################################
+    ProjectCreateSchema:
+      type: object
+      x-businessRules:
+        capacityValidation: "Ensure the assigned team has sufficient capacity for new projects."
+        resourceConstraints: "resourcePool must adhere to the organization's resource quota."
+        businessHourValidation: "startDate/endDate must align with standard operating hours."
+        concurrencyCheck: "metadata.version is typically 0 or undefined upon creation."
+
+      properties:
+        schemaVersion:
+          type: integer
+          description: "Internal schema version for forward-compatibility."
+
+        name:
+          type: string
+          minLength: 3
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9\\s\\-_.]+$"
+          description: >
+            Required project title. Must match pattern and length rules
+            for acceptance.
+
+        description:
+          type: string
+          x-descriptionFormat: markdown
+          description: "Optional textual description of the new project."
+
+        startDate:
+          type: string
+          format: date-time
+          description: >
+            Planned start date of the project. Must pass business-hour
+            validation if restricted by the organization.
+
+        endDate:
+          type: string
+          format: date-time
+          description: >
+            Planned end date. Enforced to be after startDate if provided.
+
+        teamId:
+          type: string
+          format: uuid
+          description: "ID of the team that will own and manage this project."
+
+        resourcePool:
+          type: array
+          description: >
+            Initial resource assignments. The system enforces capacity
+            checks to prevent over-allocation.
+          items:
+            type: string
+
+        analytics:
+          $ref: "#/components/schemas/ResourceAnalytics"
+
+        metadata:
+          $ref: "common.yaml#/components/schemas/MetadataSchema"
+
+      required:
+        - name
+        - teamId
+
+      x-errorHandling:
+        # References a comprehensive error handling schema for field-level or
+        # request-level validation failures.
+        $ref: "common.yaml#/components/schemas/ErrorSchema"
+
+    ##########################################################################
+    # ProjectUpdateSchema (EXPORTED)
+    # ------------------------------------------------------------------------
+    # A schema allowing partial updates to a project's fields. All properties
+    # are optional, but at least one must be provided. Includes state transition
+    # logic for statuses (e.g., ON_HOLD -> ACTIVE).
+    #
+    # Exported const members:
+    #  - type
+    #  - properties
+    #  - minProperties
+    #  - stateRules
+    ##########################################################################
+    ProjectUpdateSchema:
+      type: object
+
+      # Contains custom rules for how status transitions are allowed,
+      # along with concurrency conflict resolution strategies.
+      x-stateRules:
+        transitions:
+          PLANNING:
+            - ACTIVE
+            - ON_HOLD
+          ACTIVE:
+            - ON_HOLD
+            - COMPLETED
+          ON_HOLD:
+            - ACTIVE
+            - COMPLETED
+          COMPLETED:
+            - ARCHIVED
+        conflictResolution: "metadata.version must match the current record or updates will fail."
+
+      properties:
+        schemaVersion:
+          type: integer
+          description: "Schema version used for read/update consistency."
+
+        name:
+          type: string
+          minLength: 3
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9\\s\\-_.]+$"
+          description: "Optional new project name."
+
+        description:
+          type: string
+          x-descriptionFormat: markdown
+          description: "Optional new description or summary."
+
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+
+        startDate:
+          type: string
+          format: date-time
+          description: >
+            Optional updated start date. Must not violate chronological
+            constraints if endDate is present.
+
+        endDate:
+          type: string
+          format: date-time
+          description: "Optional updated end date. Must remain after startDate."
+
+        teamId:
+          type: string
+          format: uuid
+          description: "Changed team ownership if project is reassigned."
+
+        resourcePool:
+          type: array
+          description: >
+            Updated resource list; can add or remove resources to reflect
+            reallocation. The platform merges changes into existing data.
+          items:
+            type: string
+
+        analytics:
+          $ref: "#/components/schemas/ResourceAnalytics"
+
+        metadata:
+          $ref: "common.yaml#/components/schemas/MetadataSchema"
+
+      # Ensures that at least one property is provided for an update request.
+      minProperties: 1
+
+      x-conflictRules:
+        concurrency: "If metadata.version is outdated, return a concurrency conflict (HTTP 409)."
+
+      x-errorHandling:
+        $ref: "common.yaml#/components/schemas/ErrorSchema"
