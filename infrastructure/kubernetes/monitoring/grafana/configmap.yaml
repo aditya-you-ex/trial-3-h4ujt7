@@ -1,0 +1,743 @@
+apiVersion: v1
+kind: ConfigMap
+
+# -----------------------------------------------------------------------------------
+# This ConfigMap provides a comprehensive Grafana configuration for the TaskStream AI
+# platform. It contains:
+#   1) An enhanced grafana.ini configuration for security and server parameters.
+#   2) An optimized datasources.yaml pointing to the Prometheus endpoint (imported from
+#      prometheus-service.yaml), along with advanced query settings.
+#   3) A dashboards-provisioning.yaml file instructing Grafana how to load specialized
+#      dashboards from local JSON files.
+#   4) Four specialized dashboards in JSON format, each monitoring key TaskStream AI
+#      areas: System Overview, NLP Services, Task Management, and Analytics. They
+#      reflect requirements for ML monitoring, success criteria tracking (99.9% uptime),
+#      and resource optimization.
+#
+# Internal Import Reference:
+#   - prometheus-service.yaml (named import: prometheus-metrics)
+# External Import Reference:
+#   - Official Grafana dashboards (grafana-dashboards v9.5.3)
+#
+# Namespace:
+#   - monitoring (global specification)
+#
+# Export:
+#   - grafana-config (this ConfigMap) exposing named members:
+#       grafana.ini
+#       datasources.yaml
+#       dashboards
+# -----------------------------------------------------------------------------------
+
+metadata:
+  name: grafana-config
+  namespace: monitoring
+
+  # -------------------------------------------------------------------------
+  # Labels to identify and manage this resource within the 'monitoring' namespace.
+  # -------------------------------------------------------------------------
+  labels:
+    app: grafana
+    component: monitoring
+    tier: metrics
+    version: v1
+    part-of: taskstream-monitoring
+
+  # -------------------------------------------------------------------------
+  # Annotations describing the purpose of this ConfigMap for further clarity.
+  # -------------------------------------------------------------------------
+  annotations:
+    purpose: "Provides comprehensive Grafana server configuration including security, datasources, and custom dashboards"
+
+data:
+
+  # -----------------------------------------------------------------------------
+  # 1) GRAFANA.INI
+  #    This enhanced server configuration integrates global security, auth, and
+  #    performance optimizations as outlined in the JSON specification:
+  #      - server protocol (http), port (3000), domain, read/write timeouts
+  #      - security: admin credentials, secret key, cookie security, etc.
+  #      - auth: login form enabled, signout menu, session duration
+  #      - users: auto assign org role, theme
+  #      - dashboards: retention, refresh intervals, default home dashboard
+  # -----------------------------------------------------------------------------
+  grafana.ini: |
+    ############################################
+    # GRAFANA SERVER CONFIGURATION
+    ############################################
+
+    [server]
+    ; Protocol the server listens on (http, https, socket)
+    protocol = http
+    ; The http port to use
+    http_port = 3000
+    ; The domain name for the server
+    domain = grafana.taskstream.ai
+    ; The full URL used in links (includes protocol & domain)
+    root_url = %(protocol)s://%(domain)s/
+    ; Read and write time limits
+    read_timeout = 60s
+    write_timeout = 60s
+
+    ############################################
+    # SECURITY / ADMIN
+    ############################################
+    [security]
+    ; Default admin user
+    admin_user = admin
+    ; Reference environment variable for admin password
+    admin_password = ${GRAFANA_ADMIN_PASSWORD}
+    ; Secret key used for signing
+    secret_key = ${GRAFANA_SECRET_KEY}
+    ; Disable Gravatar for user avatars
+    disable_gravatar = true
+    ; Secure cookies (requires https to function properly in production)
+    cookie_secure = true
+    ; Enable Strict Transport Security (comply with best practices)
+    strict_transport_security = true
+    ; Content Security Policy for enhanced browser security
+    content_security_policy = true
+
+    ############################################
+    # AUTHENTICATION
+    ############################################
+    [auth]
+    ; Keep the login form available
+    disable_login_form = false
+    ; Do not auto-start OAuth
+    oauth_auto_login = false
+    ; Keep the signout menu visible
+    disable_signout_menu = false
+    ; Max inactive lifetime for login tokens
+    login_maximum_inactive_lifetime_duration = 7d
+
+    ############################################
+    # USER MANAGEMENT
+    ############################################
+    [users]
+    ; Restrict new user signup
+    allow_sign_up = false
+    ; Automatically place new users in the default organization
+    auto_assign_org = true
+    ; Auto-assign Editor role to new users in that org
+    auto_assign_org_role = Editor
+    ; Enforce dark theme as default
+    default_theme = dark
+
+    ############################################
+    # DASHBOARDS & VISUALIZATION
+    ############################################
+    [dashboards]
+    ; Number of versions to keep for each dashboard
+    versions_to_keep = 20
+    ; Minimum refresh interval that a user can select
+    min_refresh_interval = 10s
+    ; Default home dashboard file path, pointed to System Overview
+    default_home_dashboard_path = /etc/grafana/dashboards/system_overview.json
+
+
+  # -----------------------------------------------------------------------------
+  # 2) DATASOURCES.YAML
+  #    This YAML config sets up data sources for Grafana, most notably the
+  #    'Prometheus' data source referencing the 'prometheus-service:9090' endpoint
+  #    from the internal import. It also includes performance tuning parameters,
+  #    query timeouts, and Exemplar Trace ID configuration suitable for advanced
+  #    tracing.
+  # -----------------------------------------------------------------------------
+  datasources.yaml: |
+    apiVersion: 1
+
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-service:9090
+        isDefault: true
+        version: 1
+        editable: false
+        jsonData:
+          # Interval at which Grafana will query metrics
+          timeInterval: 30s
+          # Max query duration before time out
+          queryTimeout: 30s
+          # Utilize POST for queries
+          httpMethod: POST
+          # Example of linking trace IDs to a Jaeger instance
+          exemplarTraceIdDestinations:
+            - name: trace_id
+              datasourceUid: jaeger
+          # Additional query parameters for large scale queries
+          customQueryParameters:
+            max_samples: "50000"
+            timeout: "60s"
+
+
+  # -----------------------------------------------------------------------------
+  # 3) DASHBOARDS-PROVISIONING.YAML
+  #    This file instructs Grafana to load dashboards from the mounted directory.
+  #    The 'foldersFromFilesStructure' setting is true to allow subfolder-based
+  #    organization. We specify a 30-second update interval (rescan for new or
+  #    updated dashboards).
+  # -----------------------------------------------------------------------------
+  dashboards-provisioning.yaml: |
+    apiVersion: 1
+    providers:
+      - name: TaskStream
+        type: file
+        disableDeletion: true
+        updateIntervalSeconds: 30
+        options:
+          path: /etc/grafana/dashboards
+          foldersFromFilesStructure: true
+
+
+  # -----------------------------------------------------------------------------
+  # 4) SYSTEM_OVERVIEW.JSON
+  #    Specialized dashboard focusing on overall system metrics, reflecting the
+  #    'System Overview' template from the JSON specification. Highlights CPU, memory,
+  #    request rate, latency, error rates, uptime, and more.
+  # -----------------------------------------------------------------------------
+  system_overview.json: |
+    {
+      "title": "System Overview",
+      "uid": "system-overview",
+      "schemaVersion": 36,
+      "version": 1,
+      "tags": ["system", "overview", "taskstream"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "type": "graph",
+          "title": "CPU Usage",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "cpu_usage",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Memory Usage",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "memory_usage",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Request Rate",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "request_rate",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Error Rate",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "error_rate",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Response Time",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "response_time",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 }
+        },
+        {
+          "type": "stat",
+          "title": "System Uptime",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "system_uptime"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 16, "w": 6, "h": 6 }
+        },
+        {
+          "type": "stat",
+          "title": "Service Health",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "service_health"
+            }
+          ],
+          "gridPos": { "x": 18, "y": 16, "w": 6, "h": 6 }
+        },
+        {
+          "type": "graph",
+          "title": "Network Throughput",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "network_throughput",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Disk Usage",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "disk_usage",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 }
+        },
+        {
+          "type": "table",
+          "title": "Pod Status",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "pod_status"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 32, "w": 24, "h": 8 }
+        }
+      ]
+    }
+
+
+  # -----------------------------------------------------------------------------
+  # NLP_SERVICES.JSON
+  #    Monitors NLP engine metrics such as processing rate, model accuracy, latency,
+  #    queue length, GPU utilization, etc. This aligns with the 'NLP Services'
+  #    dashboard in the specification.
+  # -----------------------------------------------------------------------------
+  nlp_services.json: |
+    {
+      "title": "NLP Services",
+      "uid": "nlp-services",
+      "schemaVersion": 36,
+      "version": 1,
+      "tags": ["nlp", "services", "taskstream"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "type": "graph",
+          "title": "Processing Rate",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "processing_rate",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Model Accuracy",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "accuracy",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Latency",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "latency",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Queue Length",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "queue_length",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Model Performance",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "model_performance",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Inference Time",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "inference_time",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Batch Size",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "batch_size",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Memory Consumption",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "memory_consumption",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "GPU Utilization",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "gpu_utilization",
+              "legendFormat": "{{gpu}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Error Distribution",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "error_distribution",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 }
+        }
+      ]
+    }
+
+
+  # -----------------------------------------------------------------------------
+  # TASK_MANAGEMENT.JSON
+  #    Dashboards for metrics related to automated task creation, assignment,
+  #    completion rates, priority distribution, workflow bottlenecks, etc.
+  # -----------------------------------------------------------------------------
+  task_management.json: |
+    {
+      "title": "Task Management",
+      "uid": "task-management",
+      "schemaVersion": 36,
+      "version": 1,
+      "tags": ["task", "management", "taskstream"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "type": "graph",
+          "title": "Task Creation Rate",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "task_creation_rate",
+              "legendFormat": "{{team}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Completion Rate",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "completion_rate",
+              "legendFormat": "{{team}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Workflow Metrics",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "workflow_metrics",
+              "legendFormat": "{{workflow}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Task Distribution",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "task_distribution",
+              "legendFormat": "{{priority}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Assignment Latency",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "assignment_latency",
+              "legendFormat": "{{team}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Priority Distribution",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "priority_distribution",
+              "legendFormat": "{{priority}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Bottleneck Detection",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "bottleneck_detection",
+              "legendFormat": "{{stage}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Resource Allocation",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "resource_allocation",
+              "legendFormat": "{{team}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "SLA Compliance",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sla_compliance",
+              "legendFormat": "{{team}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Team Productivity",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "team_productivity",
+              "legendFormat": "{{team}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 }
+        }
+      ]
+    }
+
+
+  # -----------------------------------------------------------------------------
+  # ANALYTICS.JSON
+  #    Coverage of high-level analytics metrics, such as AI model drift, resource
+  #    utilization for analytics pipelines, data quality, training metrics, and
+  #    performance metrics. This supports the 'Analytics' dashboard specification.
+  # -----------------------------------------------------------------------------
+  analytics.json: |
+    {
+      "title": "Analytics",
+      "uid": "analytics",
+      "schemaVersion": 36,
+      "version": 1,
+      "tags": ["analytics", "taskstream"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "type": "graph",
+          "title": "Prediction Accuracy",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "prediction_accuracy",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Resource Utilization",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "resource_utilization",
+              "legendFormat": "{{job}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Performance Metrics",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "performance_metrics",
+              "legendFormat": "{{job}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Model Drift",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "model_drift",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Feature Importance",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "feature_importance",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Training Metrics",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "training_metrics",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Validation Scores",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "validation_scores",
+              "legendFormat": "{{model}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Data Quality",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "data_quality",
+              "legendFormat": "{{dataset}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "Processing Pipeline",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "processing_pipeline",
+              "legendFormat": "{{pipeline}}"
+            }
+          ],
+          "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 }
+        },
+        {
+          "type": "graph",
+          "title": "System Recommendations",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "system_recommendations",
+              "legendFormat": "{{recommendation}}"
+            }
+          ],
+          "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 }
+        }
+      ]
+    }
