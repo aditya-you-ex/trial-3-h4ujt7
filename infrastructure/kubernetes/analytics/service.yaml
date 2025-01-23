@@ -1,0 +1,88 @@
+###############################################################################
+# Kubernetes Service Configuration for the TaskStream AI Analytics Engine
+# ---------------------------------------------------------------------------
+# This Service manifests the predictive analytics engine, fulfilling multiple
+# enterprise-grade requirements:
+# 1) Securely exposes the analytics API (port 8000) for internal cluster
+#    communication and ensures 99.9% uptime requirements (Success Criteria).
+# 2) Provides metrics endpoint (port 9090) enabling comprehensive resource
+#    monitoring (Prometheus-based) aligned with cross-cutting concerns for
+#    system monitoring.
+# 3) Facilitates client IP session affinity for advanced traffic management
+#    and reliability.
+#
+# References to Technical Specifications:
+# - Analytics Engine (High-Level Description)
+# - System Reliability (Success Criteria)
+# - Resource Monitoring (Cross-Cutting Concerns/2.4.1 System Monitoring)
+#
+# Kubernetes Version: 1.27+ (Recommended)
+# 
+# Exports (as declared in JSON spec):
+#   - service-name (string): "analytics-service"
+#   - service-ports (array): [8000 (API), 9090 (Metrics)]
+#   - service-selectors (object): {"app": "analytics-service", "component": "analytics"}
+###############################################################################
+
+apiVersion: v1
+kind: Service
+metadata:
+  # Globally unique service name within the specified namespace
+  name: analytics-service
+
+  # Namespace aligns with "NAMESPACE": "taskstream-analytics"
+  namespace: taskstream-analytics
+
+  # Labels to identify and group this service. 
+  # "APP_LABEL": "analytics-service"
+  labels:
+    app: analytics-service
+    component: analytics
+    tier: backend
+    environment: production
+
+  # Annotations for monitoring, load balancer configuration, 
+  # and Prometheus scraping.
+  annotations:
+    # Prometheus scraping enabled for resource monitoring
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+
+    # Internal load balancer annotation for AWS
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+
+    # Sets the LB connection idle timeout for higher request concurrency
+    service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "60"
+
+spec:
+  # By defining Service type as "ClusterIP", we serve traffic internally
+  # within the Kubernetes cluster environment.
+  type: ClusterIP
+
+  # This selector targets pods labeled with app=analytics-service, component=analytics.
+  selector:
+    app: analytics-service
+    component: analytics
+
+  # Exposes two ports: 
+  # 1) API_PORT=8000 for the analytics API
+  # 2) PROMETHEUS_PORT=9090 for metrics
+  ports:
+    - name: http-api
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+
+  # Enforces client IP-based session affinity. This ensures that subsequent
+  # requests from the same client IP remain bound to the same service endpoint.
+  sessionAffinity: ClientIP
+
+  # This configuration sets the session affinity timeout to 10800 seconds (3 hours).
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
