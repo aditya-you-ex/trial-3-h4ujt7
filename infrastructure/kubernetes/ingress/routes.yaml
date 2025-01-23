@@ -1,0 +1,152 @@
+###############################################################################
+# K8s INGRESS RESOURCE FOR TASKSTREAM AI PLATFORM
+# -----------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This YAML file defines the routing rules, TLS configuration, path mappings,
+#   and security-related annotations for the TaskStream AI platform’s
+#   microservices, leveraging the Kong Ingress Controller (v2.8) on Kubernetes
+#   networking.k8s.io/v1 (Ingress). It addresses the following major
+#   requirements:
+#
+#   1) API Gateway Pattern (Tech Spec §2.1 High-Level Architecture):
+#      - Implements centralized API routing via Kong, supporting path-based
+#        route slicing (/auth, /tasks, /analytics) and advanced security
+#        features such as rate limiting and circuit breaker annotations.
+#
+#   2) System Reliability (Tech Spec §1.2 System Overview/Success Criteria):
+#      - Ensures 99.9% uptime with TLS termination, health checks, and
+#        configured timeouts, reinforcing the reliability target.
+#
+#   3) Security Architecture (Tech Spec §2.4.2 Security Architecture):
+#      - Enforces TLS with secretName: taskstream-tls, secures traffic via
+#        https protocol, integrates with cert-manager for certificate
+#        management, and applies advanced security headers.
+#
+# EXTERNAL IMPORTS (IE2):
+#   - Kubernetes Ingress resource: kubernetes/networking.k8s.io, v1
+#   - Kong Ingress Controller: konghq.com/ingress-controller, v2.8
+#
+# INTERNAL IMPORTS (IE1):
+#   - Namespace reference: taskstream (from ../config/namespaces.yaml)
+#   - Services:
+#       • auth-service (port 3001)       - authentication
+#       • taskstream-tasks (port 3002)   - task management
+#       • analytics-service (port 8000)  - predictive analytics
+#
+# GLOBALS:
+#   - DOMAIN_NAME       => api.taskstream.ai
+#   - TLS_SECRET_NAME   => taskstream-tls
+#   - INGRESS_CLASS     => kong
+#
+# EXPORTS:
+#   - ingress-routes (kubernetes_manifest):
+#       -> members_exposed: ingress-rules, tls-config, service-routes
+#          Provides route definitions, TLS, and path-based service mappings.
+###############################################################################
+
+apiVersion: networking.k8s.io/v1  # Official K8s Ingress API (v1)
+kind: Ingress
+metadata:
+  # ---------------------------------------------------------------------------
+  # NAME & NAMESPACE
+  #   'taskstream-ingress' is the unique Ingress resource identifier.
+  #   The 'taskstream' namespace is used to group platform services.
+  # ---------------------------------------------------------------------------
+  name: taskstream-ingress
+  namespace: taskstream
+
+  # ---------------------------------------------------------------------------
+  # ANNOTATIONS
+  #   - kubernetes.io/ingress.class: Defines Kong as the Ingress class.
+  #   - cert-manager.io/cluster-issuer: Used by cert-manager for automatic TLS.
+  #   - konghq.com/strip-path: Strips the matching portion of the path before
+  #       sending it upstream.
+  #   - konghq.com/protocols: Permits only https requests to protect traffic.
+  #   - konghq.com/https-redirect-status-code: Forces HTTP→HTTPS redirection.
+  #   - konghq.com/preserve-host: Passes the original host header to upstream.
+  #   - konghq.com/rewrite-target: Rewrites captured path segments to $2,
+  #       ensuring correct subpath routing.
+  #   - konghq.com/proxy-*timeout: Configures connection/read/send timeouts
+  #       to ensure system reliability.
+  #   - konghq.com/rate-limiting.* and konghq.com/circuit-breaker.enabled:
+  #       Enforces traffic throttling and resilience patterns for reliability.
+  #   - konghq.com/health-checks.active.enabled: Enables active health checks
+  #       to keep services reliable.
+  # ---------------------------------------------------------------------------
+  annotations:
+    kubernetes.io/ingress.class: "kong"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    konghq.com/strip-path: "true"
+    konghq.com/protocols: "https"
+    konghq.com/https-redirect-status-code: "301"
+    konghq.com/preserve-host: "true"
+    konghq.com/rewrite-target: "/$2"
+    konghq.com/proxy-connect-timeout: "60"
+    konghq.com/proxy-read-timeout: "60"
+    konghq.com/proxy-send-timeout: "60"
+    konghq.com/rate-limiting.enabled: "true"
+    konghq.com/rate-limiting.config.minute: "100"
+    konghq.com/circuit-breaker.enabled: "true"
+    konghq.com/health-checks.active.enabled: "true"
+
+spec:
+  # ---------------------------------------------------------------------------
+  # TLS CONFIGURATION
+  #   The 'tls' stanza ensures encrypted traffic. The 'hosts' array
+  #   matches the domain name, and 'secretName' references the TLS cert
+  #   (with key/cert pair) managed by cert-manager or other solutions.
+  # ---------------------------------------------------------------------------
+  tls:
+    - hosts:
+        - api.taskstream.ai
+      secretName: taskstream-tls
+
+  # ---------------------------------------------------------------------------
+  # RULES
+  #   The Ingress routes all requests for host 'api.taskstream.ai' to the
+  #   appropriate microservices, matched by path segments: /auth, /tasks,
+  #   and /analytics. PathType 'Prefix' ensures subpaths match as well.
+  # ---------------------------------------------------------------------------
+  rules:
+    - host: api.taskstream.ai
+      http:
+        paths:
+          # -----------------------------------------------------------
+          # AUTH SERVICE ROUTE
+          #   /auth -> for authentication. Uses service 'auth-service'
+          #   port 3001. Rewrites remaining path to pass to the upstream.
+          # -----------------------------------------------------------
+          - path: "/auth(/|$)(.*)"
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 3001
+
+          # -----------------------------------------------------------
+          # TASKS SERVICE ROUTE
+          #   /tasks -> for task management microservice. Uses service
+          #   'taskstream-tasks' on port 3002.
+          # -----------------------------------------------------------
+          - path: "/tasks(/|$)(.*)"
+            pathType: Prefix
+            backend:
+              service:
+                name: taskstream-tasks
+                port:
+                  number: 3002
+
+          # -----------------------------------------------------------
+          # ANALYTICS SERVICE ROUTE
+          #   /analytics -> for predictive analysis. Routes to the
+          #   'analytics-service' at port 8000, enabling advanced
+          #   data processing capabilities.
+          # -----------------------------------------------------------
+          - path: "/analytics(/|$)(.*)"
+            pathType: Prefix
+            backend:
+              service:
+                name: analytics-service
+                port:
+                  number: 8000
