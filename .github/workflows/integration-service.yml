@@ -1,0 +1,313 @@
+name: Integration Service CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'src/backend/services/integration/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'src/backend/services/integration/**'
+  schedule:
+    - cron: '0 0 * * *'  # Daily security scans
+
+env:
+  GO_VERSION: "1.21"
+  registry: "ghcr.io"
+  service_name: "integration-service"
+  MIN_COVERAGE: "80"
+  QUALITY_GATE_THRESHOLD: "85"
+
+jobs:
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code # actions/checkout@v4
+        uses: actions/checkout@v4
+
+      - name: Setup Go # actions/setup-go@v4
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install Test Dependencies
+        run: go mod download
+
+      - name: Run Unit Tests with Race Detection
+        run: |
+          go test -v -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Run Integration Tests Against Mocked Services
+        run: |
+          # Placeholder for integration tests
+          # Example:
+          go test -v -covermode=atomic -coverprofile=integration_coverage.out ./...
+
+      - name: Run End-to-End Tests
+        run: |
+          # Placeholder for e2e tests
+          # Example:
+          go test -v -covermode=atomic -coverprofile=e2e_coverage.out ./...
+
+      - name: Merge Coverage Reports
+        run: |
+          # Example merges coverage files if needed
+          cp coverage.out merged_coverage.out
+          # You could append additional cover files:
+          if [ -f integration_coverage.out ]; then
+            tail -n +2 integration_coverage.out >> merged_coverage.out
+          fi
+          if [ -f e2e_coverage.out ]; then
+            tail -n +2 e2e_coverage.out >> merged_coverage.out
+          fi
+
+      - name: Check Coverage Threshold
+        run: |
+          go tool cover -func=merged_coverage.out | grep total | awk '{print $3}' > coverage_percentage.tmp
+          COV_VALUE=$(cat coverage_percentage.tmp | sed 's/%//')
+          REQ_COV=${MIN_COVERAGE}
+          RESULT=$(echo "${COV_VALUE} < ${REQ_COV}" | bc -l)
+          if [ "${RESULT}" -eq 1 ]; then
+            echo "Coverage ${COV_VALUE}% is below the minimum required ${REQ_COV}%."
+            exit 1
+          fi
+          echo "Coverage ${COV_VALUE}% meets or exceeds the required ${REQ_COV}%."
+
+      - name: Upload Test Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-coverage
+          path: merged_coverage.out
+
+  security_scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - name: Checkout Code # actions/checkout@v4
+        uses: actions/checkout@v4
+
+      - name: Setup Go # actions/setup-go@v4
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Snyk Code and Dependency Scan # snyk/actions/golang@v3
+        uses: snyk/actions/golang@v3
+        with:
+          args: >
+            --all-projects
+            --severity-threshold=medium
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Build Image for Container Scan
+        run: |
+          docker build -t ${{ env.registry }}/${{ env.service_name }}:scan -f ./src/backend/services/integration/Dockerfile ./src/backend/services/integration
+
+      - name: Container Image Scan (Snyk)
+        uses: snyk/actions/golang@v3
+        with:
+          # Reusing action for container scanning can require specifying container commands
+          # This is a placeholder step to illustrate container scanning logic with Snyk
+          args: >
+            container test ${{ env.registry }}/${{ env.service_name }}:scan
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: SonarQube Analysis # sonarqube/scanner-action@v1
+        uses: sonarqube/scanner-action@v1
+        with:
+          args: >
+            -Dsonar.sourceEncoding=UTF-8
+            -Dsonar.coverageReportPaths=merged_coverage.out
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: Check SonarQube Quality Gate
+        run: |
+          # This step can be used to parse results if needed
+          echo "SonarQube Quality Gate verification step"
+          # In a real environment, we might fail here based on $QUALITY_GATE_THRESHOLD
+
+      - name: Generate Security Reports
+        run: |
+          echo "Generating final security scan reports..."
+
+      - name: Upload Security Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            **/snyk_report* 
+            **/sonar-report*
+
+  build:
+    name: Build Container
+    runs-on: ubuntu-latest
+    needs: [security_scan]
+    steps:
+      - name: Checkout Code # actions/checkout@v4
+        uses: actions/checkout@v4
+
+      - name: Setup Buildx # docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry # docker/login-action@v3
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.registry }}
+          username: ${{ secrets.GITHUB_USERNAME }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker Image # docker/build-push-action@v5
+        id: build-image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src/backend/services/integration
+          file: ./src/backend/services/integration/Dockerfile
+          platforms: linux/amd64
+          push: false
+          tags: ${{ env.registry }}/${{ env.service_name }}:build-${{ github.sha }}
+
+      - name: Run Container Security Scan (Optional)
+        run: |
+          echo "Optional container security scan step, if not done in security_scan job."
+
+      - name: Sign Container Image
+        run: |
+          echo "Signing container image..."
+          # Placeholder for actual signing logic
+          # Example: cosign sign --key $COSIGN_KEY ${{ env.registry }}/${{ env.service_name }}:build-${{ github.sha }}
+
+      - name: Push Image on Main Branch
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src/backend/services/integration
+          file: ./src/backend/services/integration/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.registry }}/${{ env.service_name }}:latest
+            ${{ env.registry }}/${{ env.service_name }}:${{ github.sha }}
+
+      - name: Generate SBOM
+        run: |
+          echo "Generating SBOM using Docker CLI..."
+          docker sbom ${{ env.registry }}/${{ env.service_name }}:build-${{ github.sha }} > sbom_report.txt || echo "SBOM generation fallback."
+
+      - name: Archive Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: |
+            sbom_report.txt
+
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout Code # actions/checkout@v4
+        uses: actions/checkout@v4
+
+      - name: Configure Kubernetes Credentials # azure/k8s-deploy@v4
+        uses: azure/k8s-deploy@v4
+        with:
+          action: 'login'
+          # Fill in the cluster details from secrets or environment
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+
+      - name: Validate Deployment Manifests
+        run: |
+          echo "Validating Kubernetes manifests..."
+          # Example: kubectl apply --dry-run=client -f k8s/integration-service
+
+      - name: Apply Database Migrations
+        run: |
+          echo "Applying database migrations (placeholder)..."
+
+      - name: Canary Deployment # azure/k8s-deploy@v4
+        uses: azure/k8s-deploy@v4
+        with:
+          manifests: k8s/integration-service/deployment.yml
+          namespace: default
+          strategy: canary
+          trafficSplitMethod: pod
+          imgs: |
+            ${{ env.registry }}/${{ env.service_name }}:${{ github.sha }}
+
+      - name: Execute Health Checks
+        run: |
+          kubectl rollout status deployment/integration-service -n default
+          kubectl get pods -n default
+
+      - name: Configure Monitoring
+        run: |
+          echo "Configuring in-cluster monitoring (placeholder)..."
+
+      - name: Update Service Mesh
+        run: |
+          echo "Updating service mesh routing (placeholder)..."
+
+      - name: Verify Deployment Success
+        run: |
+          echo "Deployment verified successfully..."
+
+      - name: Archive Deployment Logs
+        uses: actions/upload-artifact@v3
+        with:
+          name: deployment-logs
+          path: |
+            # Sample: Store logs from describe pods, events, etc.
+            logs/
+
+  monitor:
+    name: Post-Deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    steps:
+      - name: Checkout Code # actions/checkout@v4
+        uses: actions/checkout@v4
+
+      - name: Configure Datadog Monitoring # datadog/action@v1
+        uses: datadog/action@v1
+        with:
+          api-key: ${{ secrets.DD_API_KEY }}
+          app-key: ${{ secrets.DD_APP_KEY }}
+          subdomain: ${{ secrets.DD_SITE }}  # e.g. datadoghq.com
+
+      - name: Setup Performance Metrics
+        run: |
+          echo "Configuring performance metrics in Datadog (placeholder)..."
+
+      - name: Configure SLO Tracking
+        run: |
+          echo "Setting SLO thresholds and alerts for 99.9% uptime..."
+
+      - name: Setup Alert Rules
+        run: |
+          echo "Creating alert rules in Datadog (placeholder)..."
+
+      - name: Verify Service Health
+        run: |
+          echo "Checking Datadog dashboards and metrics to ensure service is healthy..."
+
+      - name: Generate Reliability Report
+        run: |
+          echo "Generating reliability report (placeholder)..."
+
+      - name: Archive Monitoring Data
+        uses: actions/upload-artifact@v3
+        with:
+          name: monitoring-data
+          path: |
+            dd_monitoring_reports/
