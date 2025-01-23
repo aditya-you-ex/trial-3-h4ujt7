@@ -1,0 +1,174 @@
+###################################################################################################
+# MULTI-STAGE DOCKERFILE FOR TASKSTREAM AI TEST ENVIRONMENTS
+# This Dockerfile builds two production-grade testing images:
+#   1) node_test_image    -> Provides Node.js-based testing environment (unit, integration, e2e).
+#   2) python_test_image  -> Provides Python-based testing environment (AI/ML tests, analytics tests).
+#
+# Stages:
+#   - node_test_base   : Base Node.js environment with build essentials, security tools, and test deps.
+#   - node_test_image  : Final Node.js test environment image (exportable via `--target node_test_image`).
+#   - python_test_base : Base Python environment with ML dependencies, security tools, and test deps.
+#   - python_test_image: Final Python test environment image (exportable via `--target python_test_image`).
+#
+# Global environment variables (defined in the JSON specification):
+#   WORKDIR=/app/test
+#   NODE_ENV=test
+#   PYTHON_ENV=test
+#   TEST_COVERAGE_THRESHOLD=80
+#   SECURITY_SCAN_LEVEL=high
+#   MAX_MEMORY=4g
+#   CPU_LIMIT=2
+#
+# External Tools / Versions (IE2):
+#   node:18-alpine       # Node.js 18 LTS on Alpine Linux
+#   python:3.11-slim     # Python 3.11 Slim image
+#   snyk:latest          # npm-installed Snyk CLI for vulnerability scanning
+#   aquasec/trivy:latest # Trivy for container security and dependency scanning
+#   owasp zap2docker-stable:latest # OWASP ZAP for security tests
+###################################################################################################
+
+###################################################################################################
+# STAGE 1: node_test_base
+# Description: Builds the base Node.js environment for TaskStream AI test suites.
+###################################################################################################
+FROM node:18-alpine AS node_test_base
+
+# Set essential environment variables for Node.js test environment.
+ENV WORKDIR=/app/test \
+    NODE_ENV=test \
+    TEST_COVERAGE_THRESHOLD=80 \
+    SECURITY_SCAN_LEVEL=high \
+    MAX_MEMORY=4g \
+    CPU_LIMIT=2
+
+# Create working directory.
+WORKDIR $WORKDIR
+
+# Install system utilities, build essentials, git, and common security scanning tools.
+# We include 'bash' for script usage in certain test scenarios if needed.
+# Alpine Linux uses 'apk' for package management.
+RUN apk update && apk upgrade && \
+    apk add --no-cache \
+      git \
+      bash \
+      build-base \
+      curl \
+      ca-certificates
+
+# Install Snyk (latest) globally for security scanning (IE2).
+# Snyk is used to detect vulnerabilities in npm dependencies.
+RUN npm install -g snyk@latest
+
+# (Optional) Additional installations for scanning; a step to illustrate potential usage:
+# - We can download and install Trivy or OWASP ZAP CLI if needed in this Node environment.
+#   The below example shows basic pattern for referencing external scanning tools.
+#   For large Docker images, it might be advisable to separate them or use ephemeral approach.
+# RUN wget -O /usr/local/bin/trivy https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.42.0_Linux-64bit.tar.gz \
+# && chmod +x /usr/local/bin/trivy
+
+# Copy required test configuration and package files for Node.js environment.
+COPY package.json ./
+# If package-lock.json exists, copy it for reproducible builds.
+# Remove below COPY if lockfile is not used or has a different name.
+COPY package-lock.json ./
+
+# Install Node.js dependencies, including devDependencies for testing, linting, coverage, etc.
+RUN npm ci
+
+# Copy Jest configuration file to ensure we have it available if needed.
+COPY jest.config.ts ./
+
+# (Optional) Copy any other needed test configs or scripts from local test directories. Example:
+# COPY ./utils/ ./utils/
+
+# Set additional environment variables relevant to Node test environment.
+# The specification also references memory and CPU constraints, which Docker can limit
+# at runtime using container-level constraints. We show them here as documentation.
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+###################################################################################################
+# STAGE 2: node_test_image
+# Description: Final image for Node.js test environment.
+#              Exported as "node_test_image" (use `docker build --target node_test_image ...`).
+###################################################################################################
+FROM node_test_base AS node_test_image
+
+# No additional steps are strictly required for the final image if everything is done in node_test_base.
+# This stage can be customized for final packaging, test utility scripts, or ephemeral usage.
+
+# Example placeholder for final environment readiness tasks:
+# RUN npm run build-test-resources || echo "Skipping build-test-resources if not applicable"
+
+###################################################################################################
+# STAGE 3: python_test_base
+# Description: Builds the base Python environment for AI/ML testing, including security scanning,
+#              resource constraints, and ML dependencies.
+###################################################################################################
+FROM python:3.11-slim AS python_test_base
+
+# Set environment variables for Python test environment.
+ENV WORKDIR=/app/test \
+    PYTHON_ENV=test \
+    TEST_COVERAGE_THRESHOLD=80 \
+    SECURITY_SCAN_LEVEL=high \
+    MAX_MEMORY=4g \
+    CPU_LIMIT=2
+
+# Create working directory.
+WORKDIR $WORKDIR
+
+# Update and install system-level dependencies commonly needed for building Python libraries,
+# plus general security tools and other relevant components.
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+      build-essential \
+      git \
+      curl \
+      ca-certificates \
+      libssl-dev \
+      libffi-dev \
+      wget && \
+    rm -rf /var/lib/apt/lists/*
+
+# (Optional) Install security scanning tools in Python environment as well, e.g., Snyk or zap-cli.
+# For illustration, we install zap-cli to interface with OWASP ZAP from Python-based tests.
+# RUN pip install --no-cache-dir zap-cli
+
+# Example of installing data science / ML libraries:
+# This is representative if your tests require advanced ML frameworks:
+RUN pip install --no-cache-dir \
+    pytest \
+    pytest-cov \
+    tensorflow==2.13.0 \
+    spacy==3.6.1 \
+    scikit-learn==1.3.0
+
+# Copy Python test dependencies (if any) from local context, such as requirements.txt or Poetry files.
+# If you maintain a requirements.txt, do:
+# COPY requirements.txt .
+# RUN pip install --no-cache-dir -r requirements.txt
+
+# Additional copying of test config scripts:
+# For example, if you maintain a local "pyproject.toml" and "poetry.lock":
+# COPY pyproject.toml poetry.lock ./
+# RUN pip install --no-cache-dir poetry && poetry install --no-root --no-interaction
+
+# Another example: copying test utility files if needed:
+# COPY ./utils/ ./utils/
+
+###################################################################################################
+# STAGE 4: python_test_image
+# Description: Final image for Python test environment.
+#              Exported as "python_test_image" (use `docker build --target python_test_image ...`).
+###################################################################################################
+FROM python_test_base AS python_test_image
+
+# As with Node, you may add final steps here if necessary for your Python environment readiness.
+# Possibly run validations, configuration scripts, or prepare local test artifacts.
+
+# Example placeholder for final environment tasks:
+# RUN echo "[INFO] Python test environment ready with AI/ML frameworks installed."
+
+###################################################################################################
+# END OF DOCKERFILE
+###################################################################################################
