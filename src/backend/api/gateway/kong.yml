@@ -1,0 +1,342 @@
+# -----------------------------------------------------------------------------------
+# Kong API Gateway Configuration
+# File: kong.yml
+# Description: Implements the TaskStream AI platform's API Gateway pattern with 
+# comprehensive routing, security architecture, and service mesh configurations.
+#
+# External Import (IE2):
+#   Using Kong Gateway ^3.4.0
+# -----------------------------------------------------------------------------------
+
+# Global Kong Configuration
+_format_version: "3.0"
+_transform: true
+
+#####################################################################################
+# SERVICES - Comprehensive microservice definitions with advanced routing
+# -----------------------------------------------------------------------------------
+services:
+  - name: auth
+    # Auth service handles user authentication, token issuance, and session management
+    host: auth-service
+    port: 4000
+    protocol: http
+    path: /api/v1
+    connect_timeout: 6000
+    write_timeout: 6000
+    read_timeout: 6000
+    retries: 5
+
+  - name: tasks
+    # Tasks service manages create/read/update/delete for tasks, assignments, and statuses
+    host: tasks-service
+    port: 4001
+    protocol: http
+    path: /api/v1
+    connect_timeout: 6000
+    write_timeout: 6000
+    read_timeout: 6000
+    retries: 5
+
+  - name: analytics
+    # Analytics service provides BI, usage metrics, predictive modeling, and reporting
+    host: analytics-service
+    port: 4002
+    protocol: http
+    path: /api/v1
+    connect_timeout: 6000
+    write_timeout: 6000
+    read_timeout: 6000
+    retries: 5
+
+  - name: nlp
+    # NLP service processes natural language inputs for automated task extraction
+    host: nlp-service
+    port: 4003
+    protocol: http
+    path: /api/v1
+    connect_timeout: 6000
+    write_timeout: 6000
+    read_timeout: 6000
+    retries: 5
+
+  - name: integration
+    # Integration service orchestrates external API calls, webhooks, and message queue events
+    host: integration-service
+    port: 4004
+    protocol: http
+    path: /api/v1
+    connect_timeout: 6000
+    write_timeout: 6000
+    read_timeout: 6000
+    retries: 5
+
+#####################################################################################
+# PLUGINS - Advanced gateway plugin configurations for security and reliability
+# -----------------------------------------------------------------------------------
+plugins:
+  # JWT plugin for token verification, referencing securityConfig.jwt
+  - name: jwt
+    config:
+      uri_param_names:
+        - jwt
+      cookie_names:
+        - jwt
+      claims_to_verify:
+        - exp
+        - nbf
+      key_claim_name: iss
+      secret_is_base64: false
+    enabled: true
+    run_on: first
+    protocols:
+      - http
+      - https
+
+  # OAuth2 plugin for external provider authentication flows, referencing securityConfig.oauth
+  - name: oauth2
+    config:
+      scopes:
+        - profile
+        - email
+      mandatory_scope: true
+      enable_password_grant: false
+      token_expiration: 86400
+      refresh_token_ttl: 604800
+      anonymous: null
+      enable_client_credentials: true
+    enabled: true
+    run_on: first
+    protocols:
+      - http
+      - https
+
+  # Rate-limiting plugin, referencing securityConfig.rateLimit
+  - name: rate-limiting
+    config:
+      second: 0
+      minute: 1000
+      hour: 0
+      day: 0
+      policy: local
+      limit_by: ip
+      fault_tolerant: false
+      hide_client_headers: false
+    enabled: true
+    run_on: first
+    protocols:
+      - http
+      - https
+
+  # CORS plugin, referencing securityConfig.cors
+  - name: cors
+    config:
+      origins: ["http://localhost:3000", "https://app.taskstream.ai"]
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+      headers: ["Accept", "Content-Type", "Authorization", "X-Request-ID"]
+      exposed_headers: ["X-Total-Count", "X-Request-ID"]
+      credentials: true
+      max_age: 86400
+    enabled: true
+    run_on: first
+    protocols:
+      - http
+      - https
+
+  # Prometheus plugin for collecting metrics exposed by the gateway
+  - name: prometheus
+    config:
+      scrapable: true
+      prefix: taskstream_ai_kong
+      per_consumer: false
+      status_code_metrics: true
+      latency_metrics: true
+      bandwidth_metrics: true
+    enabled: true
+    protocols:
+      - http
+      - https
+
+  # Request-transformer for injecting or removing headers before forwarding
+  - name: request-transformer
+    config:
+      add:
+        headers:
+          - "X-Forwarded-Platform: TaskStreamAI"
+      remove:
+        headers:
+          - "X-Deprecated-Header"
+    enabled: true
+    protocols:
+      - http
+      - https
+
+  # IP-restriction plugin to whitelist or blacklist specific IP ranges
+  - name: ip-restriction
+    config:
+      deny:
+        - 10.10.0.0/16
+      allow:
+        - 192.168.1.0/24
+    enabled: true
+    protocols:
+      - http
+      - https
+
+  # Bot-detection plugin used to block known malicious or automated user agents
+  - name: bot-detection
+    config:
+      allow: []
+      deny: []
+    enabled: true
+    run_on: first
+    protocols:
+      - http
+      - https
+
+  # Response-transformer for potentially sanitizing or augmenting responses
+  - name: response-transformer
+    config:
+      add:
+        headers:
+          - "X-Platform-Response: Processed"
+      remove:
+        headers:
+          - "X-Sensitive-Header"
+    enabled: true
+    protocols:
+      - http
+      - https
+
+  # Circuit-breaker plugin for controlling traffic during service failures
+  - name: circuit-breaker
+    config:
+      max_errors: 5
+      error_timeout: 30
+      fallback: "Service is currently in fallback mode."
+    enabled: true
+    protocols:
+      - http
+      - https
+
+#####################################################################################
+# ROUTES - Advanced route definitions with versioning and canary capabilities
+# -----------------------------------------------------------------------------------
+routes:
+  - name: auth_routes
+    protocols: ["http", "https"]
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    paths:
+      - /api/v1/auth
+    strip_path: true
+    preserve_host: false
+    service:
+      name: auth
+
+  - name: task_routes
+    protocols: ["http", "https"]
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    paths:
+      - /api/v1/tasks
+    strip_path: true
+    preserve_host: false
+    service:
+      name: tasks
+
+  - name: analytics_routes
+    protocols: ["http", "https"]
+    methods: ["GET", "POST", "OPTIONS"]
+    paths:
+      - /api/v1/analytics
+    strip_path: true
+    preserve_host: false
+    service:
+      name: analytics
+
+  - name: nlp_routes
+    protocols: ["http", "https"]
+    methods: ["GET", "POST", "OPTIONS"]
+    paths:
+      - /api/v1/nlp
+    strip_path: true
+    preserve_host: false
+    service:
+      name: nlp
+
+  - name: integration_routes
+    protocols: ["http", "https"]
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+    paths:
+      - /api/v1/integration
+    strip_path: true
+    preserve_host: false
+    service:
+      name: integration
+
+#####################################################################################
+# UPSTREAMS - Sophisticated service upstreams with health checks, load balancing,
+#             and circuit-breaker definitions
+# -----------------------------------------------------------------------------------
+upstreams:
+  # Service Targets - Aggregates each microservice's IP or DNS targets
+  - name: service_targets
+    tags:
+      - upstream
+    slots: 100
+    algorithm: round-robin
+    use_srv_name: false
+    host_header: null
+    # Example placeholders for each service
+    targets:
+      - target: auth-service:4000
+      - target: tasks-service:4001
+      - target: analytics-service:4002
+      - target: nlp-service:4003
+      - target: integration-service:4004
+
+  # Health Checks - Actively monitors the health of each service target
+  - name: health_checks
+    tags:
+      - upstream
+    healthchecks:
+      active:
+        concurrency: 10
+        http_path: /health
+        healthy:
+          interval: 10
+          successes: 2
+        unhealthy:
+          interval: 5
+          http_failures: 2
+      passive:
+        healthy:
+          successes: 2
+          http_statuses:
+            - 200
+            - 302
+        unhealthy:
+          http_failures: 3
+          tcp_failures: 3
+          timeouts: 2
+
+  # Circuit Breakers - Advanced parameters to trip circuit based on service performance
+  - name: circuit_breakers
+    tags:
+      - upstream
+    # Example custom circuit-breaker logic for each service
+    circuit_breakers:
+      failure_timeout: 30
+      threshold: 0.5
+      minimum_requests: 20
+      sample_size: 100
+
+  # Load Balancing - Fine-grained configuration for distributing requests
+  - name: load_balancing
+    tags:
+      - upstream
+    algorithm: least-connections
+    # Additional load balancing tuning parameters
+    hash_fallback: none
+    hash_on_cookie: null
+    hash_on: none
+    hash_fallback_header: null
