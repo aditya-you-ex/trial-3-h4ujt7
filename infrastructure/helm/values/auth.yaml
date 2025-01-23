@@ -1,0 +1,276 @@
+################################################################################
+# HELM VALUES FILE FOR TASKSTREAM AI AUTHENTICATION SERVICE
+# -------------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This Helm values file provides the configuration for the TaskStream AI
+#   authentication service, including container image references, replica count,
+#   service definition, resource constraints, security contexts, ingress rules,
+#   autoscaling, and monitoring scopes. It is designed to fulfill the
+#   enterprise-grade requirements outlined in the technical specifications:
+#
+#   1) Authentication Service Deployment (Tech Spec 8.1)
+#      - Minimum 3 replicas in a multi-region AWS EKS cluster
+#      - Secure configuration leveraging advanced context and secrets management
+#
+#   2) Container Orchestration (Tech Spec 8.4)
+#      - Defines advanced scheduling with pod anti-affinity
+#      - Includes explicit resource requests/limits and horizontal pod autoscaling
+#
+#   3) Security Protocols (Tech Spec 7.3)
+#      - Enforces robust pod security context aligned with SOC 2 Type II
+#      - Integrates secrets, environment variables, and vault injection
+#
+# IMPORTANT NOTES:
+#   - These values can be overridden by command-line flags, environment-based
+#     CI/CD, or upstream chart definitions (Chart.yaml). Each parameter is
+#     comprehensively documented for production usage.
+################################################################################
+
+################################################################################
+# GLOBAL CHART METADATA (OPTIONAL)
+#   chartName: "taskstream-auth"
+#   chartVersion: "1.0.0"
+################################################################################
+
+################################################################################
+# REPLICA COUNT
+# Minimum recommended replicas to ensure high availability. The actual replica
+# count may be further controlled by an HPA in production environments.
+################################################################################
+replicaCount: 3
+
+################################################################################
+# IMAGE
+# Specifies the Docker image details for the auth service, including repository,
+# tag, and pull policy. Typically references a registry with automated builds.
+################################################################################
+image:
+  repository: "taskstream/auth-service"
+  tag: "latest"
+  pullPolicy: "Always"
+
+################################################################################
+# SERVICE ACCOUNT
+# Defines the Kubernetes ServiceAccount to attach any IAM roles or policies
+# (via IRSA for EKS). Annotations may include role ARNs for fine-grained security.
+################################################################################
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::${AWS_ACCOUNT_ID}:role/taskstream-auth-service-role"
+  name: "auth-service-account"
+
+################################################################################
+# POD ANNOTATIONS
+# Used to configure external services like Prometheus scraping and Vault injection
+# for secrets. Also includes a checksum for config changes to auto-trigger updates.
+################################################################################
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3001"
+  prometheus.io/path: "/metrics"
+  vault.hashicorp.com/agent-inject: "true"
+  vault.hashicorp.com/role: "auth-service"
+  checksum/config: "${CONFIG_CHECKSUM}"
+
+################################################################################
+# POD SECURITY CONTEXT
+# Enforces running as non-root with a specific user/group, plus seccomp profile.
+################################################################################
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+################################################################################
+# SECURITY CONTEXT
+# Additional container-level security enforcement, dropping capabilities and
+# preventing privilege escalation. Adheres to SOC 2 Type II guidelines.
+################################################################################
+securityContext:
+  capabilities:
+    drop:
+      - "ALL"
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+
+################################################################################
+# SERVICE
+# Exposes the authentication service inside the cluster. Usually paired with
+# an ingress rule or internal load balancer. In this configuration, the service
+# uses TCP on port 3001.
+################################################################################
+service:
+  type: "ClusterIP"
+  port: 3001
+  targetPort: 3001
+  protocol: "TCP"
+
+################################################################################
+# INGRESS
+# Enables external access to the authentication service via an AWS ALB ingress.
+# TLS termination, WAF ID, and host-based routing can be configured here.
+################################################################################
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    kubernetes.io/ingress.class: "alb"
+    alb.ingress.kubernetes.io/scheme: "internet-facing"
+    alb.ingress.kubernetes.io/target-type: "ip"
+    alb.ingress.kubernetes.io/listen-ports: "[{\"HTTPS\":443}]"
+    alb.ingress.kubernetes.io/certificate-arn: "${SSL_CERT_ARN}"
+    alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS-1-2-2017-01"
+    alb.ingress.kubernetes.io/waf-acl-id: "${WAF_ACL_ID}"
+    external-dns.alpha.kubernetes.io/hostname: "auth.${BASE_DOMAIN}"
+
+################################################################################
+# RESOURCES
+# Defines requests and limits for CPU/memory to ensure stable scheduling and
+# enforce resource constraints for the auth service containers.
+################################################################################
+resources:
+  requests:
+    cpu: "500m"
+    memory: "512Mi"
+  limits:
+    cpu: "1000m"
+    memory: "1Gi"
+
+################################################################################
+# AUTOSCALING
+# Configures optional Horizontal Pod Autoscaler values if enabled. The HPA can
+# scale replicas based on CPU and memory utilization thresholds within specified
+# min/max boundaries. The 'behavior.scaleDown' block prevents rapid scale down.
+################################################################################
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+
+################################################################################
+# MONITORING
+# Reserved block for any additional Prometheus/Grafana or external monitoring
+# integrations. Typically used to define exporters, dashboards, or alerts for the
+# auth service. Adjust as needed for your environment.
+################################################################################
+monitoring:
+  enabled: false
+  scrapingIntervalSeconds: 30
+
+################################################################################
+# NODE SELECTOR
+# Restricts scheduling of auth pods to nodes labeled for 'linux' or
+# specifically designated for app usage. Helps isolate resources and OS features.
+################################################################################
+nodeSelector:
+  "kubernetes.io/os": "linux"
+  "node.kubernetes.io/purpose": "app"
+
+################################################################################
+# TOLERATIONS
+# Allows pods to be scheduled on nodes with specific taints, e.g., 'NoSchedule'
+# for an 'auth' taint. Ensures pods can run in specialized node pools if required.
+################################################################################
+tolerations:
+  - key: "app"
+    operator: "Equal"
+    value: "auth"
+    effect: "NoSchedule"
+
+################################################################################
+# AFFINITY
+# Prefers spreading pods across distinct hosts to increase resilience, using
+# pod anti-affinity with 'preferredDuringSchedulingIgnoredDuringExecution'.
+################################################################################
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: "app"
+                operator: "In"
+                values:
+                  - "auth-service"
+          topologyKey: "kubernetes.io/hostname"
+
+################################################################################
+# ENV
+# Environment variables to pass into the auth container. Typically includes
+# configuration for port, environment mode, logging, and feature flags.
+################################################################################
+env:
+  AUTH_SERVICE_PORT: "3001"
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  METRICS_ENABLED: "true"
+
+################################################################################
+# SECRETS
+# Specifies references for sensitive variables such as database URLs and OAuth
+# credentials, which should be injected or managed via an external vault or
+# Kubernetes Secret. These placeholders expect environment-specific values.
+################################################################################
+secrets:
+  auth:
+    AUTH_DB_URL: "${AUTH_DB_URL}"
+    SESSION_SECRET: "${SESSION_SECRET}"
+    GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
+    GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
+    GOOGLE_CALLBACK_URL: "${GOOGLE_CALLBACK_URL}"
+    MS_CLIENT_ID: "${MS_CLIENT_ID}"
+    MS_CLIENT_SECRET: "${MS_CLIENT_SECRET}"
+    MS_CALLBACK_URL: "${MS_CALLBACK_URL}"
+
+################################################################################
+# LIVENESS PROBE
+# Actively checks container health at '/health'. Failure triggers a pod restart
+# after consecutive timeouts, ensuring critical processes remain responsive.
+################################################################################
+livenessProbe:
+  httpGet:
+    path: "/health"
+    port: 3001
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+################################################################################
+# READINESS PROBE
+# Confirms container is ready to accept traffic by responding to GET '/ready'.
+# Ensures zero downtime updates and stable load balancing in production.
+################################################################################
+readinessProbe:
+  httpGet:
+    path: "/ready"
+    port: 3001
+  initialDelaySeconds: 15
+  periodSeconds: 5
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 3
+
+################################################################################
+# STARTUP PROBE
+# Verifies successful application startup. If configured incorrectly or
+# the container fails to respond on '/health', the pod is cycled.
+################################################################################
+startupProbe:
+  httpGet:
+    path: "/health"
+    port: 3001
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  failureThreshold: 30
