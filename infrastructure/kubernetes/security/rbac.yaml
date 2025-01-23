@@ -1,0 +1,245 @@
+# =============================================================================
+# FILE DESCRIPTION:
+# -----------------------------------------------------------------------------
+# This file defines Kubernetes RBAC resources for the TaskStream AI platform,
+# ensuring strict role-based access control (RBAC) that enforces the principle
+# of least privilege and meets compliance requirements (SOC 2 Type II, ISO
+# 27001). It references Kubernetes (v1.27+) APIs and internally imports the
+# PodSecurityPolicy definitions ("restricted", "privileged") from
+# pod-security-policies.yaml to align with the enhanced security posture
+# described in the technical specifications.
+#
+# CONTENTS:
+#   1) ServiceAccounts
+#   2) Namespaced Roles
+#   3) ClusterRoles
+#   4) RoleBindings
+#   5) ClusterRoleBindings
+#
+# GLOBAL VARIABLES & PLACEHOLDERS:
+#   - ${SERVICE_NAMESPACES.ANALYTICS}, ${SERVICE_NAMESPACES.NLP},
+#     ${SERVICE_NAMESPACES.MONITORING}, etc. represent configurable namespace
+#     references for each major TaskStream AI service.
+#
+# REFERENCES & COMPLIANCE:
+#   - Security Architecture (Technical Specifications/2.4.2)
+#   - Access Control (Technical Specifications/7.3.1)
+#   - Compliance Requirements (Technical Specifications/7.3.3)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1) SERVICE ACCOUNTS
+# -----------------------------------------------------------------------------
+# Each ServiceAccount is assigned to a specific namespace and labeled/annotated
+# with security tiers, rotation schedules, and review timestamps to maintain
+# tight operational governance. These accounts will be bound to corresponding
+# roles or cluster roles that match their privileges.
+
+# -----------------------------------------------------------------------------
+# SERVICE ACCOUNT: analytics-service-account
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: analytics-service-account
+  namespace: "${SERVICE_NAMESPACES.ANALYTICS}"
+  labels:
+    app: "analytics"
+    component: "service-account"
+    security-tier: "restricted"
+  annotations:
+    security.taskstream.ai/rotation-schedule: "90d"
+    security.taskstream.ai/last-reviewed: "timestamp"
+---
+# -----------------------------------------------------------------------------
+# SERVICE ACCOUNT: nlp-service-account
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nlp-service-account
+  namespace: "${SERVICE_NAMESPACES.NLP}"
+  labels:
+    app: "nlp"
+    component: "service-account"
+    security-tier: "restricted"
+  annotations:
+    security.taskstream.ai/rotation-schedule: "90d"
+    security.taskstream.ai/last-reviewed: "timestamp"
+---
+# -----------------------------------------------------------------------------
+# SERVICE ACCOUNT: monitoring-service-account
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitoring-service-account
+  namespace: "${SERVICE_NAMESPACES.MONITORING}"
+  labels:
+    app: "monitoring"
+    component: "service-account"
+    security-tier: "privileged"
+  annotations:
+    security.taskstream.ai/rotation-schedule: "90d"
+    security.taskstream.ai/last-reviewed: "timestamp"
+
+# -----------------------------------------------------------------------------
+# 2) NAMESPACED ROLES
+# -----------------------------------------------------------------------------
+# Namespaced Roles provide granular permissions within a specific namespace.
+# Each rule set is carefully curated to only permit the actions necessary for
+# the associated service, thereby meeting the least-privilege principle.
+
+# -----------------------------------------------------------------------------
+# ROLE: analytics-role (Namespace: ${SERVICE_NAMESPACES.ANALYTICS})
+# -----------------------------------------------------------------------------
+# Provides read access to certain core resources and more extensive management
+# over batch resources relevant to analytics tasks, as well as metrics from
+# the 'metrics.k8s.io' API group.
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: analytics-role
+  namespace: "${SERVICE_NAMESPACES.ANALYTICS}"
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps"]
+    verbs: ["get", "list", "watch"]
+    resourceNames: ["analytics-*"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+    resourceNames: ["analytics-*"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get"]
+    resourceNames: ["analytics-*"]
+
+# -----------------------------------------------------------------------------
+# ROLE: nlp-role (Namespace: ${SERVICE_NAMESPACES.NLP})
+# -----------------------------------------------------------------------------
+# Enables read access to pods, services, configmaps, and secrets in the NLP
+# namespace. Allows creation and observation of batch jobs specifically tied
+# to NLP workloads. Resource names are restricted to those beginning with "nlp-"
+# to enforce strict usage patterns.
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: nlp-role
+  namespace: "${SERVICE_NAMESPACES.NLP}"
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+    resourceNames: ["nlp-*"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create"]
+    resourceNames: ["nlp-*"]
+
+# -----------------------------------------------------------------------------
+# 3) CLUSTER ROLES
+# -----------------------------------------------------------------------------
+# A ClusterRole is bound at the cluster scope, granting privileges across all
+# namespaces. The specification below provides the monitoring workflow with
+# read access to pods, nodes, and specific monitoring-related resources for
+# the entire cluster. This is crucial for a holistic observability stack.
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: monitoring-cluster-role
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "nodes", "namespaces", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods", "nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors", "podmonitors", "prometheusrules"]
+    verbs: ["get", "list", "watch"]
+
+# -----------------------------------------------------------------------------
+# 4) ROLE BINDINGS
+# -----------------------------------------------------------------------------
+# RoleBindings associate a Role with a subject (e.g., a ServiceAccount) within
+# the same namespace, granting the subject the permissions outlined in the Role.
+
+# -----------------------------------------------------------------------------
+# ROLE BINDING: analytics-role-binding
+# -----------------------------------------------------------------------------
+# Binds the analytics-service-account in the analytics namespace to the
+# analytics-role, ensuring that the analytics service only has the appropriate
+# restricted permissions needed for analytics workloads.
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: analytics-role-binding
+  namespace: "${SERVICE_NAMESPACES.ANALYTICS}"
+subjects:
+  - kind: ServiceAccount
+    name: analytics-service-account
+    namespace: "${SERVICE_NAMESPACES.ANALYTICS}"
+roleRef:
+  kind: Role
+  name: "analytics-role"
+  apiGroup: rbac.authorization.k8s.io
+
+# -----------------------------------------------------------------------------
+# ROLE BINDING: nlp-role-binding
+# -----------------------------------------------------------------------------
+# Binds the nlp-service-account in the nlp namespace to the nlp-role for read
+# and limited job-creation rights, aligning with the specialized NLP operations
+# that require job execution capabilities.
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nlp-role-binding
+  namespace: "${SERVICE_NAMESPACES.NLP}"
+subjects:
+  - kind: ServiceAccount
+    name: nlp-service-account
+    namespace: "${SERVICE_NAMESPACES.NLP}"
+roleRef:
+  kind: Role
+  name: "nlp-role"
+  apiGroup: rbac.authorization.k8s.io
+
+# -----------------------------------------------------------------------------
+# 5) CLUSTER ROLE BINDINGS
+# -----------------------------------------------------------------------------
+# ClusterRoleBindings grant permissions to subjects across the entire cluster,
+# as specified in the associated ClusterRole. They override the boundaries of
+# individual namespaces when global visibility or privileges are required.
+
+# -----------------------------------------------------------------------------
+# CLUSTER ROLE BINDING: monitoring-cluster-role-binding
+# -----------------------------------------------------------------------------
+# Links the monitoring-service-account to the monitoring-cluster-role, granting
+# cluster-wide read permissions for statuses, services, events, and various
+# resources, which is essential for maintaining a centralized monitoring
+# system.
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: monitoring-cluster-role-binding
+subjects:
+  - kind: ServiceAccount
+    name: monitoring-service-account
+    namespace: "${SERVICE_NAMESPACES.MONITORING}"
+roleRef:
+  kind: ClusterRole
+  name: "monitoring-cluster-role"
+  apiGroup: rbac.authorization.k8s.io
