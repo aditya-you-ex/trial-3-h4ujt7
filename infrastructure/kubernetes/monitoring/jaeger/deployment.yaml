@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+
+# ------------------------------------------------------------------------------
+# DEPLOYMENT: Jaeger All-in-One for Distributed Tracing
+# ------------------------------------------------------------------------------
+# This Deployment configures the "jaeger" service with an all-in-one container
+# (including agent, collector, and query) to provide end-to-end distributed
+# tracing for TaskStream AI microservices. The specified container version
+# (1.45) aligns with the JSON specification. It runs under the "monitoring"
+# namespace to leverage the existing security and rbac constraints.
+# ------------------------------------------------------------------------------
+
+metadata:
+  name: jaeger
+  namespace: monitoring
+  labels:
+    # Core labels to identify this Deployment
+    app: jaeger                            # Identifies the application name
+    component: monitoring                  # Indicates this is a monitoring component
+    version: "1.45"                        # Version matches the Jaeger release
+    part-of: observability-stack           # Part of the overall observability stack
+
+  annotations:
+    # Prometheus annotations to enable metrics scraping
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "16686"
+    prometheus.io/path: "/metrics"
+    prometheus.io/scheme: "http"
+
+    # Custom TaskStream AI annotations for extended tracing and security
+    tracing.taskstream.ai/endpoint: "/api/traces"
+    security.taskstream.ai/scanned: "true"
+
+spec:
+  # Number of replicas for high availability or scaling. Currently set to 1 for simplicity.
+  replicas: 1
+
+  # Deployment will manage pods with common matchLabels (app=jaeger).
+  selector:
+    matchLabels:
+      app: jaeger
+
+  template:
+    metadata:
+      labels:
+        app: jaeger
+
+    spec:
+      # ------------------------------------------------------------------------
+      # POD SECURITY CONTEXT
+      # ------------------------------------------------------------------------
+      # Enforces the principle of least privilege: running as non-root, restricting
+      # file system access, and preventing privilege escalation. This aligns with
+      # the best-practice PSP (restricted) and the associated RBAC policies
+      # ensuring compliance with SOC 2 Type II requirements.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+
+      # ------------------------------------------------------------------------
+      # AFFINITY / ANTI-AFFINITY RULES
+      # ------------------------------------------------------------------------
+      # PodAntiAffinity ensures that the "jaeger" pods are not placed on the same
+      # worker node, optimizing reliability by distributing them across different
+      # hosts if multiple replicas are ever used in the future.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - jaeger
+                topologyKey: kubernetes.io/hostname
+
+      # ------------------------------------------------------------------------
+      # CONTAINERS
+      # ------------------------------------------------------------------------
+      containers:
+        - name: jaeger
+          # Third-party external import: Jaeger all-in-one distribution (version 1.45)
+          image: "jaegertracing/all-in-one:1.45"  # Jaeger all-in-one distribution version 1.45
+          ports:
+            - name: http
+              containerPort: 16686
+              protocol: TCP  # Default UI/HTTP endpoint
+            - name: grpc
+              containerPort: 14250
+              protocol: TCP  # gRPC for collector
+            - name: zipkin
+              containerPort: 9411
+              protocol: TCP  # Zipkin-compatible endpoint
+
+          # --------------------------------------------------------------------
+          # ENVIRONMENT VARIABLES
+          # --------------------------------------------------------------------
+          # - COLLECTOR_ZIPKIN_HOST_PORT: Exposes the collector on Zipkin port
+          # - MEMORY_MAX_TRACES: Limits in-memory trace storage
+          # - SAMPLING_STRATEGIES_FILE: Configuration path for sampling strategies
+          env:
+            - name: COLLECTOR_ZIPKIN_HOST_PORT
+              value: ":9411"
+            - name: MEMORY_MAX_TRACES
+              value: "50000"
+            - name: SAMPLING_STRATEGIES_FILE
+              value: "/etc/jaeger/sampling/sampling.json"
+
+          # --------------------------------------------------------------------
+          # RESOURCE LIMITS/REQUESTS
+          # --------------------------------------------------------------------
+          # Limits and requests define guaranteed and maximum resource usage.
+          # This ensures the platform remains stable under heavy load while
+          # respecting cluster capacity and cost efficiency.
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+
+          # --------------------------------------------------------------------
+          # PROBES
+          # --------------------------------------------------------------------
+          # ReadinessProbe checks if the container is ready to serve traffic,
+          # while LivenessProbe ensures that a non-responsive container
+          # is automatically restarted. Recommended intervals preserve stability.
+          readinessProbe:
+            httpGet:
+              path: "/"
+              port: 16686
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: "/"
+              port: 16686
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
