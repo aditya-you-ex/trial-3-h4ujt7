@@ -1,0 +1,76 @@
+# -------------------------------------------------------------------
+# Kubernetes Horizontal Pod Autoscaler (HPA) configuration for the
+# TaskStream AI authentication service. This file is generated to:
+#  1) Implement automatic scaling based on CPU utilization (70%)
+#  2) Provide a minimum of 5 replicas for baseline capacity
+#  3) Scale up to 20 replicas for resource optimization
+#  4) Maintain high availability with controlled stabilization windows
+#  5) Align with advanced scaling behaviors and production requirements
+#
+# External Import Reference:
+#   - "kubernetes" package (v1.27+) autoscaling/v2 API
+#
+# Exports:
+#   - HorizontalPodAutoscaler
+#       - metadata (object)
+#       - spec (object)
+# -------------------------------------------------------------------
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+
+metadata:
+  # Export: metadata
+  # Contains identifying information for this HPA resource
+  name: auth-service-hpa
+  namespace: taskstream
+  labels:
+    # Label "app" set to identify the specific microservice
+    app: auth-service
+    # Label "component" used to track functional grouping
+    component: authentication
+    # Label "part-of" indicates which primary platform this service belongs to
+    part-of: taskstream
+
+spec:
+  # Export: spec
+  # Defines how scaling behavior is determined and executed
+  scaleTargetRef:
+    # Reference to the Deployment resource that this HPA will scale
+    apiVersion: apps/v1
+    kind: Deployment
+    name: auth-service
+
+  # Minimum number of replicas to ensure baseline capacity
+  minReplicas: 5
+
+  # Maximum number of replicas to allow during peak loads
+  maxReplicas: 20
+
+  # Metrics configuration: here we use CPU utilization at 70% as the primary scaling metric
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+  # Behavior section dictates how scaling up or down occurs over time for production stability
+  behavior:
+    scaleUp:
+      # Stabilization window ensures that HPA avoids rapidly scaling up and down
+      stabilizationWindowSeconds: 60
+      policies:
+        # Control how quickly scaling up can occur in terms of pods
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      # Longer stabilization window to avoid rapid scale downs
+      stabilizationWindowSeconds: 300
+      policies:
+        # Control how quickly scaling down can occur in terms of pods
+        - type: Pods
+          value: 1
+          periodSeconds: 120
