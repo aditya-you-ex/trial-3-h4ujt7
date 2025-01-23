@@ -1,0 +1,123 @@
+################################################################################
+# TaskStream AI - Backend Services .dockerignore
+# ------------------------------------------------------------------------------
+# This file excludes files/directories that are unnecessary or potentially
+# insecure to include in the Docker build context. Doing so optimizes image
+# size, reduces build times, and helps maintain security best practices.
+#
+# ------------------------------------------------------------------------------
+# Exported Ignore Categories:
+#   1) development_files    - Python & Node.js artifacts, config files, caches
+#   2) test_files           - Test, coverage files, and folders for QA
+#   3) documentation        - Documentation, manuals, references
+#   4) version_control      - Git repositories, VCS metadata
+#   5) cache_files          - Local caches, build caches
+#   6) editor_files         - IDE metadata, local editor settings
+#   7) build_artifacts      - Files/folders produced by build steps
+#   8) security_sensitive   - Environment variables, keys, credentials
+#
+# ------------------------------------------------------------------------------
+# exclude_pattern Function (Logical Outline):
+#   1) Validate pattern syntax for .dockerignore compatibility
+#   2) Format pattern according to .dockerignore specification
+#   3) Add pattern to the relevant category with descriptive comments
+#   4) Verify pattern doesn't conflict with essential production files
+#   5) Merge into the global ignore list below
+#
+# ------------------------------------------------------------------------------
+# GLOBAL IGNORE PATTERNS
+################################################################################
+
+################################################################################
+# Python artifacts (development_files)
+################################################################################
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.Python
+env/
+venv/
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+poetry.lock
+pyproject.toml
+
+################################################################################
+# Node.js artifacts (development_files)
+################################################################################
+node_modules/
+npm-debug.log
+.npm/
+.npm/_logs
+.npmrc
+yarn-error.log
+yarn.lock
+
+################################################################################
+# Security sensitive (security_sensitive)
+################################################################################
+.env
+.env.*
+.aws/
+credentials/
+*_rsa
+*.pem
+*.key
+
+################################################################################
+# Version control (version_control)
+################################################################################
+.git/
+.gitignore
+.dockerignore
+
+################################################################################
+# Docker files
+################################################################################
+Dockerfile*
+docker-compose*.yml
+
+################################################################################
+# Documentation (documentation)
+################################################################################
+README.md
+LICENSE
+docs/
+
+################################################################################
+# Test files (test_files)
+################################################################################
+__tests__/
+tests/
+test/
+coverage/
+htmlcov/
+
+################################################################################
+# Build artifacts (build_artifacts)
+################################################################################
+dist/
+build/
+*.egg-info/
+.next/
+.nuxt/
+.output/
+
+################################################################################
+# Editor files (editor_files)
+################################################################################
+.idea/
+.vscode/
+*.swp
+*.swo
+
+################################################################################
+# Logs and temp files (cache_files / temp)
+################################################################################
+*.log
+tmp/
+temp/
