@@ -1,0 +1,158 @@
+apiVersion: apps/v1
+kind: Deployment
+
+# ------------------------------------------------------------------------------
+# This Kubernetes Deployment resource provides the Grafana monitoring dashboard
+# for the TaskStream AI platform. It meets the requirements of:
+#  - System Monitoring (via Grafana visualization) 
+#  - Reliability (99.9% uptime) with liveness/readiness probes
+#  - Infrastructure Monitoring (Prometheus annotations for metric collection)
+# ------------------------------------------------------------------------------
+metadata:
+  name: grafana-deployment
+  namespace: monitoring
+
+  # --------------------------------------------------------------------------
+  # Labels identify this Deployment as part of the "taskstream-monitoring" stack.
+  # - app: The application name (grafana).
+  # - component: The functional grouping for monitoring.
+  # - tier: Service tier (metrics).
+  # - version: Version label for future reference.
+  # - part-of: Specifies that this resource is part of the overall monitoring.
+  # --------------------------------------------------------------------------
+  labels:
+    app: grafana
+    component: monitoring
+    tier: metrics
+    version: v1
+    part-of: taskstream-monitoring
+
+  # --------------------------------------------------------------------------
+  # Annotations provide descriptive metadata for clarity and can be used by
+  # other automated processes or debugging/insight tools.
+  # --------------------------------------------------------------------------
+  annotations:
+    purpose: "Deploys and manages Grafana pods for TaskStream AI platform metrics visualization"
+
+spec:
+  # --------------------------------------------------------------------------
+  # "replicas" is set to 1 per the JSON specification. In production scenarios,
+  # this can be increased for high availability or horizontal scaling.
+  # --------------------------------------------------------------------------
+  replicas: 1
+
+  # --------------------------------------------------------------------------
+  # The "selector" defines how the ReplicaSet identifies the Pods it manages.
+  # Must match the labels set in the Pod template metadata below.
+  # --------------------------------------------------------------------------
+  selector:
+    matchLabels:
+      app: grafana
+      component: monitoring
+
+  template:
+    metadata:
+      # ------------------------------------------------------------------------
+      # The labels here must match the Deployment's "selector" block.
+      # ------------------------------------------------------------------------
+      labels:
+        app: grafana
+        component: monitoring
+
+      # ------------------------------------------------------------------------
+      # Annotations that instruct Prometheus to scrape metrics from Grafana's
+      # internal port. This supports integration with the Prometheus server.
+      # - prometheus.io/scrape: "true" to enable scraping
+      # - prometheus.io/port: "3000" for Grafana
+      # ------------------------------------------------------------------------
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+
+    spec:
+      # ------------------------------------------------------------------------
+      # securityContext ensures the container runs with a non-root user. Grafana
+      # recommends running as user ID 472 (grafana user). We also set fsGroup
+      # so that mounted volumes allow the container user to read/write files.
+      # ------------------------------------------------------------------------
+      securityContext:
+        fsGroup: 472
+        runAsUser: 472
+        runAsNonRoot: true
+
+      containers:
+        - name: grafana
+
+          # --------------------------------------------------------------------
+          # Using Docker image 'grafana/grafana:9.5.3' for the external import.
+          # This version includes security fixes and stability improvements.
+          # --------------------------------------------------------------------
+          image: grafana/grafana:9.5.3
+
+          # --------------------------------------------------------------------
+          # This container port setting exposes Grafana on port 3000, matching
+          # the port used for readiness/liveness probes.
+          # --------------------------------------------------------------------
+          ports:
+            - containerPort: 3000
+              name: http
+              protocol: TCP
+
+          # --------------------------------------------------------------------
+          # Resource requests and limits as defined in the JSON specification.
+          # This helps Kubernetes schedule the Pod efficiently and enforces
+          # memory/CPU usage constraints.
+          # --------------------------------------------------------------------
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+
+          # --------------------------------------------------------------------
+          # volumeMounts reference the ConfigMap for Grafana configuration
+          # (grafana.ini, datasources, dashboards) and the Persistent Volume
+          # for storing Grafana's data and stateful information.
+          # --------------------------------------------------------------------
+          volumeMounts:
+            - name: grafana-config
+              mountPath: /etc/grafana
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+
+          # --------------------------------------------------------------------
+          # readinessProbe ensures the container is marked ready only after
+          # Grafana's /api/health endpoint responds successfully, which helps
+          # zero-downtime rolling updates and load balancing.
+          # --------------------------------------------------------------------
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+          # --------------------------------------------------------------------
+          # livenessProbe protects long-running containers by periodically
+          # checking /api/health to verify Grafana hasn't become unresponsive.
+          # --------------------------------------------------------------------
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+
+      # ------------------------------------------------------------------------
+      # volumes definition to mount both the ConfigMap providing the Grafana
+      # configuration and the PersistentVolumeClaim for persistent data storage.
+      # ------------------------------------------------------------------------
+      volumes:
+        - name: grafana-config
+          configMap:
+            name: grafana-config
+        - name: grafana-storage
+          persistentVolumeClaim:
+            claimName: grafana-pvc
