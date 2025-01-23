@@ -1,0 +1,226 @@
+################################################################################
+# Docker Compose configuration for the TaskStream AI test environment.
+# This file orchestrates containerized test services and dependencies required
+# for automated unit, integration, end-to-end (E2E), performance, and security
+# tests. It extends the base configurational concepts from "../backend/docker-compose.yml"
+# by introducing test-specific services, optimized resource limits, ephemeral
+# storage, and stricter health checks to accelerate feedback in CI/CD pipelines.
+#
+# References:
+#  - Technical Specifications (Section 8.1) for Test Environment Setup.
+#  - Containerization guidelines (Section 8.3) for ephemeral volumes, health checks.
+#  - Test Coverage Standards ensuring environment isolation and quick spin-ups.
+################################################################################
+
+version: "3.8"  # Matching the global Docker Compose version specified in the JSON.
+
+###############################################################################
+# Top-Level Networks
+# -----------------------------------------------------------------------------
+# We establish a dedicated bridge network for the test environment, internal
+# to prevent external exposure. This network is defined to isolate test traffic
+# from other services or containers running in parallel.
+###############################################################################
+networks:
+  taskstream_test_network:
+    driver: bridge
+    internal: true
+
+###############################################################################
+# Top-Level Volumes
+# -----------------------------------------------------------------------------
+# All volumes are configured with 'tmpfs' driver options for ephemeral storage
+# in testing. This ensures swift container spin-up, tear-down, and no persistent
+# data across runs, preventing test data leakage or cross-contamination.
+###############################################################################
+volumes:
+  test_postgres_data:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+
+  test_redis_data:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+
+  test_elasticsearch_data:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+
+  test_mongodb_data:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+
+###############################################################################
+# Services
+# -----------------------------------------------------------------------------
+# Below are the test-specific container services needed for TaskStream AI's
+# automated testing. Each service uses resource-limited configurations, ephemeral
+# volumes, and shortened health check intervals. They are not intended for
+# production usage.
+###############################################################################
+services:
+  #############################################################################
+  # PostgreSQL Test Database (test_postgres)
+  # ----------------------------------------------------------------------------
+  # A dedicated PostgreSQL instance configured for testing:
+  #  - fsync=off, synchronous_commit=off for faster writes
+  #  - ephemeral data volume (tmpfs)
+  #  - reduced memory footprint
+  #  - shorter health check intervals for immediate feedback in CI
+  #############################################################################
+  test_postgres:
+    image: "postgres:14-alpine"  # (postgres@14-alpine) Optimized for test usage
+    container_name: "test_postgres_service"
+    environment:
+      - POSTGRES_DB=taskstream_test
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    command: "postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off"
+    volumes:
+      - "test_postgres_data:/var/lib/postgresql/data"
+    ports:
+      - "${TEST_DB_PORT:-5433}:5432"
+    networks:
+      - taskstream_test_network
+    healthcheck:  # (Reduced intervals per requirement)
+      test: ["CMD-SHELL", "pg_isready -U test_user -d taskstream_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512M"
+
+  #############################################################################
+  # Redis Test Cache (test_redis)
+  # ----------------------------------------------------------------------------
+  # A lightweight Redis instance specifically for testing:
+  #  - ephemeral data volume
+  #  - short health checks
+  #  - minimal memory overhead
+  #############################################################################
+  test_redis:
+    image: "redis:7.0-alpine"  # (redis@7.0-alpine) for test environment
+    container_name: "test_redis_service"
+    volumes:
+      - "test_redis_data:/data"
+    ports:
+      - "${TEST_REDIS_PORT:-6380}:6379"
+    networks:
+      - taskstream_test_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512M"
+
+  #############################################################################
+  # Elasticsearch Single-Node (test_elasticsearch)
+  # ----------------------------------------------------------------------------
+  # Elasticsearch container for test usage:
+  #  - single-node mode (discovery.type=single-node)
+  #  - ephemeral data volume
+  #  - port mapped to localhost:9201
+  #  - relaxed resource usage
+  #############################################################################
+  test_elasticsearch:
+    image: "elasticsearch:8.0"  # (elasticsearch@8.0) Single-node for quick tests
+    container_name: "test_elasticsearch_service"
+    environment:
+      - "discovery.type=single-node"
+    volumes:
+      - "test_elasticsearch_data:/usr/share/elasticsearch/data"
+    ports:
+      - "9201:9200"
+    networks:
+      - taskstream_test_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9200 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512M"
+
+  #############################################################################
+  # MongoDB Test Instance (test_mongodb)
+  # ----------------------------------------------------------------------------
+  # MongoDB used for certain test scenarios requiring unstructured data storage:
+  #  - ephemeral data volume
+  #  - standard ephemeral test usage
+  #  - short interval health checks
+  #############################################################################
+  test_mongodb:
+    image: "mongodb:6.0"  # (mongodb@6.0) Simple single-container test instance
+    container_name: "test_mongodb_service"
+    volumes:
+      - "test_mongodb_data:/data/db"
+    ports:
+      - "27018:27017"
+    networks:
+      - taskstream_test_network
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512M"
+
+  #############################################################################
+  # NLP Service (test_nlp_service)
+  # ----------------------------------------------------------------------------
+  # Dedicated to natural language processing test scenarios:
+  #  - Built from the base Dockerfile with a test-specific build arg (ENV=test)
+  #  - Dependencies: test_redis and test_elasticsearch for caching and indexing
+  #  - Lower resource limits (CPU and RAM) suitable for ephemeral test usage
+  #############################################################################
+  test_nlp_service:
+    build:
+      context: "../backend"
+      dockerfile: "Dockerfile"
+      target: "python_service"
+      args:
+        ENV: "test"
+    container_name: "test_nlp_service"
+    environment:
+      - PYTHON_ENV=test
+      - MODEL_PATH=/app/models
+      - API_PORT=5010
+      - MAX_WORKERS=2
+      - MEMORY_LIMIT=512m
+    volumes:
+      - "../backend/nlp:/app/nlp:ro"
+      - "../backend/models:/app/models:ro"
+    depends_on:
+      - test_redis
+      - test_elasticsearch
+    networks:
+      - taskstream_test_network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512M"
