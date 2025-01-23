@@ -1,0 +1,194 @@
+################################################################################
+# KIBANA DEPLOYMENT FOR TASKSTREAM AI (v8.0.0)
+# ------------------------------------------------------------------------------
+# This file provides the Kubernetes manifests for deploying and configuring
+# Kibana as part of the ELK stack within the "monitoring" namespace. It addresses
+# the following key requirements from the technical specifications:
+#   - System Monitoring (2.4.1): Centralized visualization of logs and metrics
+#   - Infrastructure Monitoring (8.5 IaC): Advanced deployment with security and
+#     resource optimizations for robust analytics
+#
+# INTERNAL IMPORT (IE1):
+#   - elasticsearch-service (Service) from elasticsearch.yaml
+#       * Port "elasticsearch-rest" => 9200 for communication with ES cluster
+#
+# EXTERNAL IMPORT (IE2):
+#   - kibana@docker.elastic.co/kibana/kibana:8.0.0
+#       * Official Kibana container image for secure log visualization
+#
+# GLOBAL NAMESPACE:
+#   - monitoring
+#
+# EXPORTS:
+#   1) kibana-config (ConfigMap)
+#       ~ Exports named configuration item "kibana.yml"
+#   2) kibana-deployment (Deployment)
+#       ~ Exports named application "kibana-monitoring"
+#   3) kibana-service (Service)
+#       ~ Exports named port "kibana-ui"
+#
+# SECURITY & PERFORMANCE NOTES:
+#   - X-Pack security features are enabled (xpack.security.enabled = true)
+#   - Prometheus scrape annotations are included for integration with Monitoring
+#   - Resource constraints are set to optimize performance and stability
+################################################################################
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana-config
+  namespace: monitoring
+  # Export: kibana-config
+  # Members Exposed: kibana.yml (configuration)
+  # Purpose: Provides comprehensive Kibana configuration with security, monitoring,
+  #          and performance optimizations
+data:
+  kibana.yml: |
+    ############################################################################
+    # KIBANA CONFIGURATION
+    # --------------------------------------------------------------------------
+    # This configuration file enables Kibana to connect to the Elasticsearch
+    # service (elasticsearch:9200), with advanced features such as:
+    #   - X-Pack security
+    #   - Audit logging
+    #   - Monitoring UI integrations
+    #   - Custom request and shard timeouts
+    #   - Verbose logging for debug/troubleshooting
+    ############################################################################
+    server.name: "taskstream-kibana"
+    server.host: "0.0.0.0"
+    elasticsearch.hosts:
+      - "http://elasticsearch:9200"
+    monitoring.ui.container.elasticsearch.enabled: true
+    xpack.security.enabled: true
+    xpack.reporting.enabled: true
+    xpack.monitoring.enabled: true
+    xpack.security.audit.enabled: true
+    elasticsearch.requestTimeout: 30000
+    elasticsearch.shardTimeout: 30000
+    logging.verbose: true
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: monitoring
+  labels:
+    app: kibana
+    component: monitoring
+    version: "8.0.0"
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5601"
+  # Export: kibana-deployment
+  # Members Exposed: kibana-monitoring (application)
+  # Purpose: Deploys and manages highly available Kibana monitoring interface
+  #          with enhanced security and resource optimization
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+        - name: kibana
+          ######################################################################
+          # External Import Reference:
+          #   docker.elastic.co/kibana/kibana:8.0.0
+          # Official Kibana container image enabling real-time log and metric
+          # visualization with advanced X-Pack features.
+          ######################################################################
+          image: "docker.elastic.co/kibana/kibana:8.0.0"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          ports:
+            - containerPort: 5601
+              name: ui
+              protocol: TCP
+          ######################################################################
+          # Probes:
+          #   - LivenessProbe ensures Kibana is running and responsive
+          #   - ReadinessProbe ensures Kibana is ready to serve traffic
+          ######################################################################
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 5601
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 5601
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          ######################################################################
+          # Env Vars referencing the Elasticsearch service's rest port
+          # (elasticsearch:9200). This config aligns with the X-Pack security
+          # and monitoring features declared in the kibana.yml ConfigMap.
+          ######################################################################
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: "http://elasticsearch:9200"
+            - name: SERVER_NAME
+              value: "taskstream-kibana"
+            - name: MONITORING_ENABLED
+              value: "true"
+            - name: XPACK_SECURITY_ENABLED
+              value: "true"
+            - name: XPACK_REPORTING_ENABLED
+              value: "true"
+          ######################################################################
+          # Mount the Kibana ConfigMap for advanced configuration overrides and
+          # custom xpack settings. The 'subPath' ensures only the file named
+          # 'kibana.yml' is mounted into the container's config directory.
+          ######################################################################
+          volumeMounts:
+            - name: kibana-config
+              mountPath: /usr/share/kibana/config/kibana.yml
+              subPath: kibana.yml
+      ##########################################################################
+      # Volumes referencing the kibana-config ConfigMap. This must be available
+      # before the container starts to ensure Kibana loads the correct advanced
+      # settings.
+      ##########################################################################
+      volumes:
+        - name: kibana-config
+          configMap:
+            name: kibana-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: monitoring
+  labels:
+    app: kibana
+    component: monitoring
+  # Export: kibana-service
+  # Members Exposed: kibana-ui (port)
+  # Purpose: Exposes Kibana UI interface with proper service discovery and
+  #          load balancing for the "monitoring" namespace
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5601
+      targetPort: ui
+      protocol: TCP
+      name: ui
+  selector:
+    app: kibana
