@@ -1,0 +1,251 @@
+[
+  {
+    "id": "task-1-backlog-manual",
+    "projectId": "sample-project-100",
+    "title": "Gather initial requirements",
+    "description": "Define project scope and initial user stories.",
+    "status": "BACKLOG",
+    "priority": "HIGH",
+    "assigneeId": "pm-1",
+    "dueDate": "2024-05-01T00:00:00Z",
+    "estimatedHours": 4,
+    "actualHours": 0,
+    "completionPercentage": 0,
+    "dependencies": [],
+    "source": "MANUAL",
+    "aiMetadata": null,
+    "analytics": {
+      "resourceId": "pm-1",
+      "utilization": 0,
+      "allocatedHours": 0,
+      "actualHours": 0,
+      "efficiency": 0
+    }
+  },
+  {
+    "id": "task-2-todo-email",
+    "projectId": "sample-project-100",
+    "title": "Email follow-up with design team",
+    "description": "Send design requirements from initial meeting.",
+    "status": "TODO",
+    "priority": "MEDIUM",
+    "assigneeId": "marketing-1",
+    "dueDate": "2024-05-03T00:00:00Z",
+    "estimatedHours": 2,
+    "actualHours": 0,
+    "completionPercentage": 0,
+    "dependencies": [
+      "task-1-backlog-manual"
+    ],
+    "source": "EMAIL",
+    "aiMetadata": {
+      "confidence": 0.85,
+      "extractedFrom": "email-1234",
+      "entities": [
+        "Design Team",
+        "Requirements"
+      ],
+      "keywords": [
+        "follow-up",
+        "email",
+        "design"
+      ],
+      "sentimentScore": 0.2,
+      "urgencyIndicators": [],
+      "categoryPredictions": {
+        "communication": 0.95,
+        "documentation": 0.12
+      }
+    },
+    "analytics": {
+      "resourceId": "marketing-1",
+      "utilization": 0,
+      "allocatedHours": 2,
+      "actualHours": 0,
+      "efficiency": 0
+    }
+  },
+  {
+    "id": "task-3-inprogress-chat",
+    "projectId": "sample-project-100",
+    "title": "Implement chat-based ML pipeline",
+    "description": "Integrate NLP for tasks from chat messages.",
+    "status": "IN_PROGRESS",
+    "priority": "HIGH",
+    "assigneeId": "dev-1",
+    "dueDate": "2024-06-15T00:00:00Z",
+    "estimatedHours": 40,
+    "actualHours": 10,
+    "completionPercentage": 25,
+    "dependencies": [
+      "task-1-backlog-manual"
+    ],
+    "source": "CHAT",
+    "aiMetadata": {
+      "confidence": 0.92,
+      "extractedFrom": "chat-5678",
+      "entities": [
+        "ML pipeline",
+        "NLP"
+      ],
+      "keywords": [
+        "integration",
+        "chat",
+        "NLP"
+      ],
+      "sentimentScore": 0.1,
+      "urgencyIndicators": [
+        "deadline mention"
+      ],
+      "categoryPredictions": {
+        "machine_learning": 0.88,
+        "communication": 0.35
+      }
+    },
+    "analytics": {
+      "resourceId": "dev-1",
+      "utilization": 0.25,
+      "allocatedHours": 40,
+      "actualHours": 10,
+      "efficiency": 0.25
+    }
+  },
+  {
+    "id": "task-4-inreview-meeting",
+    "projectId": "sample-project-100",
+    "title": "Review design prototypes",
+    "description": "Initial review of the design prototypes from the design team.",
+    "status": "IN_REVIEW",
+    "priority": "LOW",
+    "assigneeId": "designer-1",
+    "dueDate": "2024-06-01T00:00:00Z",
+    "estimatedHours": 10,
+    "actualHours": 8,
+    "completionPercentage": 80,
+    "dependencies": [
+      "task-2-todo-email"
+    ],
+    "source": "MEETING",
+    "aiMetadata": {
+      "confidence": 0.78,
+      "extractedFrom": "meeting-notes-001",
+      "entities": [
+        "design team",
+        "prototype"
+      ],
+      "keywords": [
+        "review",
+        "design",
+        "prototype"
+      ],
+      "sentimentScore": 0.4,
+      "urgencyIndicators": [],
+      "categoryPredictions": {
+        "design": 0.9
+      }
+    },
+    "analytics": {
+      "resourceId": "designer-1",
+      "utilization": 0.8,
+      "allocatedHours": 10,
+      "actualHours": 8,
+      "efficiency": 0.8
+    }
+  },
+  {
+    "id": "task-5-done-chat",
+    "projectId": "sample-project-100",
+    "title": "Finalize project charter",
+    "description": "Collect all requirements, scope, and deliverables into a finalized charter.",
+    "status": "DONE",
+    "priority": "MEDIUM",
+    "assigneeId": "pm-2",
+    "dueDate": "2024-04-20T00:00:00Z",
+    "estimatedHours": 6,
+    "actualHours": 5,
+    "completionPercentage": 100,
+    "dependencies": [
+      "task-1-backlog-manual",
+      "task-2-todo-email"
+    ],
+    "source": "CHAT",
+    "aiMetadata": null,
+    "analytics": {
+      "resourceId": "pm-2",
+      "utilization": 0.83,
+      "allocatedHours": 6,
+      "actualHours": 5,
+      "efficiency": 0.83
+    }
+  },
+  {
+    "id": "task-6-todo-manual",
+    "projectId": "sample-project-200",
+    "title": "Database schema design",
+    "description": "Create ER diagram and define primary data relationships.",
+    "status": "TODO",
+    "priority": "HIGH",
+    "assigneeId": "db-arch-1",
+    "dueDate": "2024-08-01T00:00:00Z",
+    "estimatedHours": 20,
+    "actualHours": 0,
+    "completionPercentage": 0,
+    "dependencies": [],
+    "source": "MANUAL",
+    "aiMetadata": null,
+    "analytics": {
+      "resourceId": "db-arch-1",
+      "utilization": 0,
+      "allocatedHours": 20,
+      "actualHours": 0,
+      "efficiency": 0
+    }
+  },
+  {
+    "id": "task-7-inprogress-email",
+    "projectId": "sample-project-200",
+    "title": "Backend API endpoints",
+    "description": "Develop and test REST and gRPC endpoints for tasks and projects.",
+    "status": "IN_PROGRESS",
+    "priority": "LOW",
+    "assigneeId": "dev-2",
+    "dueDate": "2024-09-01T00:00:00Z",
+    "estimatedHours": 50,
+    "actualHours": 5,
+    "completionPercentage": 10,
+    "dependencies": [
+      "task-6-todo-manual"
+    ],
+    "source": "EMAIL",
+    "aiMetadata": {
+      "confidence": 0.88,
+      "extractedFrom": "email-backend-req-002",
+      "entities": [
+        "REST",
+        "gRPC",
+        "tasks",
+        "projects"
+      ],
+      "keywords": [
+        "API",
+        "endpoints",
+        "development"
+      ],
+      "sentimentScore": 0.3,
+      "urgencyIndicators": [
+        "deadline mention"
+      ],
+      "categoryPredictions": {
+        "backend_development": 0.72,
+        "integration": 0.52
+      }
+    },
+    "analytics": {
+      "resourceId": "dev-2",
+      "utilization": 0.1,
+      "allocatedHours": 50,
+      "actualHours": 5,
+      "efficiency": 0.1
+    }
+  }
+]
