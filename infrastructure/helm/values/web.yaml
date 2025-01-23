@@ -1,0 +1,237 @@
+################################################################################
+# HELM VALUES FILE FOR TASKSTREAM AI WEB FRONTEND
+# ------------------------------------------------------------------------------
+# This values file configures the TaskStream AI web frontend application
+# according to the technical specifications. It addresses the following
+# requirements:
+#   1) Frontend Deployment (Tech Specs/8.4 Orchestration):
+#      - Minimum 3 replicas with resource limits of 2 CPU, 4 GB memory.
+#   2) High Availability (Tech Specs/8.1 Deployment Environment):
+#      - Multi-region readiness, enabling 99.9% uptime with rolling updates.
+#   3) System Reliability (Tech Specs/1.2 System Overview/Success Criteria):
+#      - Proper service configuration for high uptime and stable autoscaling.
+#
+# INTERNAL IMPORT REFERENCES:
+#   - deployment.yaml (containers & securityContext):
+#       These values define how the web container image is set, plus CPU & memory.
+#   - service.yaml (spec.ports & spec.selector):
+#       The 'service' block below corresponds to service type, port, and
+#       load-balancer annotations for cross-zone distribution.
+#   - hpa.yaml (spec.metrics & spec.behavior):
+#       The 'autoscaling' block below satisfies CPU-based scaling rules,
+#       including scale-up and scale-down policies.
+#
+# EXTERNAL IMPORT REFERENCE:
+#   - nginx (v1.25-alpine):
+#       The underlying Docker base image used for hosting static web content.
+#
+# The following keys match the JSON specification's "helm_values" block exactly.
+################################################################################
+
+################################################################################
+# NAME OVERRIDES
+################################################################################
+nameOverride: "taskstream-web"       # Custom name override for release
+fullnameOverride: "taskstream-web"    # Ensures final naming uniformity
+
+################################################################################
+# IMAGE CONFIGURATION
+################################################################################
+# Points to the TaskStream web image (importantly referencing the 'nginx:1.25-alpine'
+# base in its Dockerfile). 'pullPolicy=Always' ensures the latest version is fetched.
+image:
+  repository: "taskstream/web"
+  tag: "latest"
+  pullPolicy: "Always"
+
+################################################################################
+# REPLICA COUNT
+################################################################################
+# Ensures at least 3 replicas for high availability, per the "Frontend Deployment"
+# requirement and matching the specification in "deployment.yaml".
+replicaCount: 3
+
+################################################################################
+# SERVICE CONFIGURATION
+################################################################################
+# Matches the structure defined in "service.yaml" for ports and pod label selector.
+# The AWS NLB annotations support cross-zone load balancing to meet the 99.9% uptime.
+service:
+  type: "ClusterIP"
+  port: 80
+  targetPort: 80
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "80"
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+
+################################################################################
+# RESOURCE REQUESTS & LIMITS
+################################################################################
+# Aligns with the recommended 500m CPU / 1Gi memory requests, up to 2 CPU / 4Gi memory.
+# Reflects the container requirements from "deployment.yaml" for stable performance
+# and compliance with enterprise resource quotas.
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "2"
+    memory: "4Gi"
+
+################################################################################
+# AUTOSCALING CONFIGURATION
+################################################################################
+# Reflects the HorizontalPodAutoscaler from "hpa.yaml". CPU utilization is targeted
+# at 70%, with scaleUp and scaleDown behavior preventing thrashing.
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: "Pods"
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: "Pods"
+          value: 1
+          periodSeconds: 60
+
+################################################################################
+# SECURITY CONTEXT
+################################################################################
+# Mirroring "deployment.yaml" definitions: strictly non-root, disallow privilege
+# escalation, read-only root filesystem for best-practice container hardening.
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 101
+  fsGroup: 101
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+
+################################################################################
+# POD SECURITY CONTEXT
+################################################################################
+# Ensures pods run with non-root privileges. This is enforced globally for the
+# entire pod's filesystem group and user IDs, aligning with restricted PSPs.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 101
+  fsGroup: 101
+
+################################################################################
+# LIVENESS & READINESS PROBES
+################################################################################
+# Works with the container's / endpoint to verify healthy and ready states.
+# Timings align with "deployment.yaml" references to detect failures quickly.
+livenessProbe:
+  httpGet:
+    path: "/"
+    port: 80
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: "/"
+    port: 80
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+################################################################################
+# AFFINITY CONFIGURATION
+################################################################################
+# This ensures pods are spread across different nodes (anti-affinity) to reduce
+# single-point-of-failure risk and boost reliability.
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          topologyKey: "kubernetes.io/hostname"
+          labelSelector:
+            matchLabels:
+              app: "taskstream-web"
+
+################################################################################
+# LABELS FOR POD IDENTIFICATION
+################################################################################
+# The "app", "tier", "component", and "part-of" labels unify deployments and
+# align with the references used in "deployment.yaml" and "service.yaml".
+labels:
+  app: "taskstream-web"
+  tier: "frontend"
+  component: "web"
+  part-of: "taskstream"
+
+################################################################################
+# POD ANNOTATIONS
+################################################################################
+# Prometheus scraping is enabled at port 80, consistent with the "service.yaml"
+# annotations for cluster-wide metric collection.
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "80"
+
+################################################################################
+# DEPLOYMENT STRATEGY
+################################################################################
+# RollingUpdate ensures minimal downtime while rolling out changes, meeting the
+# system reliability target of 99.9% availability.
+strategy:
+  type: "RollingUpdate"
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+################################################################################
+# EXPORTS
+################################################################################
+# Exports the key Helm values. These can be referenced by other charts or
+# sub-charts without exposing sensitive internal settings.
+web-values:
+  image: 
+    repository: "taskstream/web"
+    tag: "latest"
+    pullPolicy: "Always"
+  service:
+    type: "ClusterIP"
+    port: 80
+    targetPort: 80
+    annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "80"
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+      service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 60
+        policies:
+          - type: "Pods"
+            value: 2
+            periodSeconds: 60
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - type: "Pods"
+            value: 1
+            periodSeconds: 60
