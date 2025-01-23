@@ -1,0 +1,222 @@
+################################################################################
+# LOGSTASH DEPLOYMENT FOR TASKSTREAM AI MONITORING (Version: 8.0.0)
+# ------------------------------------------------------------------------------
+# This file defines the Kubernetes manifests for deploying Logstash in the
+# "monitoring" namespace as part of the ELK stack, addressing:
+#  - System Monitoring (tech specs 2.4.1)
+#  - Infrastructure Monitoring (tech specs 8.5, IaC)
+#
+# Exports:
+#   1) logstash-deployment (Deployment)
+#      - members_exposed: logstash-monitoring (application)
+#   2) logstash-service (Service)
+#      - members_exposed: logstash-beats (port), logstash-metrics (port)
+#   3) logstash-config (ConfigMap)
+#      - members_exposed: logstash.yml, pipelines.yml, log4j2.properties
+#   4) logstash-pdb (PodDisruptionBudget)
+#      - members_exposed: minAvailable
+#
+# Internal Import:
+#   - elasticsearch-service (named import from elasticsearch.yaml)
+#     -> Using "elasticsearch:9200" (named port 'rest') for log forwarding
+#
+# External Import:
+#   - logstash (docker.elastic.co/logstash/logstash:8.0.0)
+#     -> Official Logstash container image
+#
+# Notes on Security & HA:
+#   - SecurityContext enforces runAsUser=1000, readOnlyRootFilesystem=true
+#   - Anti-affinity ensures pods spread across nodes for high availability
+#   - Prometheus scraping enabled on port 9600
+################################################################################
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  namespace: monitoring
+  labels:
+    app: logstash
+    component: monitoring
+    application: logstash-monitoring
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9600"
+    prometheus.io/path: "/metrics"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        readOnlyRootFilesystem: true
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - logstash
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: init-elasticsearch
+          image: busybox:1.28
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Elasticsearch (imported: elasticsearch-service, named port: rest)"
+              until nc -z elasticsearch 9200; do
+                echo "waiting for elasticsearch"
+                sleep 2
+              done
+      containers:
+        - name: logstash
+          # External import reference (logstash:8.0.0)
+          image: "docker.elastic.co/logstash/logstash:8.0.0"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          ports:
+            - containerPort: 5044
+              name: beats
+            - containerPort: 9600
+              name: metrics
+          livenessProbe:
+            httpGet:
+              path: "/"
+              port: 9600
+            initialDelaySeconds: 300
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: "/"
+              port: 9600
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: logstash-config
+              mountPath: /usr/share/logstash/config/logstash.yml
+              subPath: logstash.yml
+            - name: logstash-config
+              mountPath: /usr/share/logstash/config/pipelines.yml
+              subPath: pipelines.yml
+            - name: logstash-config
+              mountPath: /usr/share/logstash/config/log4j2.properties
+              subPath: log4j2.properties
+      volumes:
+        - name: logstash-config
+          configMap:
+            name: logstash-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash
+  namespace: monitoring
+  labels:
+    app: logstash
+    component: monitoring
+  annotations:
+    service.taskstream.io/exposed-ports: "beats,metrics"
+spec:
+  selector:
+    app: logstash
+  ports:
+    - name: logstash-beats
+      port: 5044
+      targetPort: 5044
+    - name: logstash-metrics
+      port: 9600
+      targetPort: 9600
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: monitoring
+  labels:
+    app: logstash
+    component: monitoring
+  annotations:
+    config.taskstream.io/purpose: "Enhanced Logstash configuration with monitoring"
+data:
+  logstash.yml: |
+    ############################################################################
+    # Logstash Main Configuration
+    # ----------------------------------------------------------------------------
+    # Enhanced settings to enable monitoring, security, and dedicated pipeline
+    # references. The 'http.host' ensures Logstash listens on all interfaces for
+    # the NodePort or ClusterIP routing. X-Pack monitoring integration points to
+    # the 'elasticsearch' service on port 9200 (imported from elasticsearch.yaml).
+    ############################################################################
+    http.host: "0.0.0.0"
+    node.name: "logstash"
+    path.config: "/usr/share/logstash/config"
+    xpack.monitoring.enabled: true
+    xpack.monitoring.elasticsearch.hosts: [ "http://elasticsearch:9200" ]
+    log.level: info
+
+  pipelines.yml: |
+    ############################################################################
+    # Logstash Pipelines Configuration
+    # ----------------------------------------------------------------------------
+    # Defines pipeline(s) and entry points for data ingestion and processing.
+    # By default, referencing the main pipeline from /usr/share/logstash/pipeline
+    # or overriding with environment variables if needed.
+    ############################################################################
+    - pipeline.id: main
+      path.config: "/usr/share/logstash/config/pipeline"
+      pipeline.workers: 2
+      pipeline.batch.size: 125
+
+  log4j2.properties: |
+    ############################################################################
+    # Logstash Logging Configuration (log4j2)
+    # ----------------------------------------------------------------------------
+    # Provides console-based logging with a structured pattern layout for Logstash.
+    ############################################################################
+    status = info
+    appender.console.type = Console
+    appender.console.name = STDOUT
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = [%d{ISO8601}][%-5p][%-25c] %m%n
+    rootLogger.level = info
+    rootLogger.appenderRef.console.ref = STDOUT
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: logstash-pdb
+  namespace: monitoring
+  labels:
+    app: logstash
+    component: monitoring
+  annotations:
+    pdb.taskstream.io/purpose: "Ensures minimum availability for Logstash"
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: logstash
