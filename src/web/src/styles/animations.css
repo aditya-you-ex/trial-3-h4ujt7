@@ -1,0 +1,214 @@
+/* =============================================================================
+   TaskStream AI - Reusable CSS Animations
+   -----------------------------------------------------------------------------
+   This file defines keyframe animations and utility classes for smooth, 
+   GPU-accelerated transitions throughout the TaskStream AI application. It 
+   integrates reduced motion preferences for accessibility and leverages 
+   centralized design tokens from variables.css for consistent transition 
+   durations. 
+============================================================================== */
+
+/* -----------------------------------------------------------------------------
+   Import shared design variables, including transition durations and easing.
+   This is an internal stylesheet import (no external version required).
+----------------------------------------------------------------------------- */
+@import "./variables.css";
+
+/* =============================================================================
+   GLOBAL KEYFRAMES
+   -----------------------------------------------------------------------------
+   These named keyframes provide foundational motion effects for a variety of
+   UI elements, promoting consistent animation behaviors across the application.
+   Each keyframe uses "translateZ(0)" or "will-change: transform" to help the
+   browser optimize rendering on the GPU.
+============================================================================== */
+
+/* Fade In Keyframe 
+   - Smoothly transition an element from fully transparent to fully opaque */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    will-change: opacity;
+  }
+  to {
+    opacity: 1;
+    will-change: opacity;
+  }
+}
+
+/* Fade Out Keyframe 
+   - Smoothly transition an element from fully opaque to fully transparent */
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    will-change: opacity;
+  }
+  to {
+    opacity: 0;
+    will-change: opacity;
+  }
+}
+
+/* Slide In Right Keyframe 
+   - Float an element in from the right side with GPU-accelerated translate */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%) translateZ(0);
+    will-change: transform;
+  }
+  to {
+    transform: translateX(0) translateZ(0);
+    will-change: transform;
+  }
+}
+
+/* Slide Out Right Keyframe 
+   - Move an element off to the right side with a smooth transition */
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0) translateZ(0);
+    will-change: transform;
+  }
+  to {
+    transform: translateX(100%) translateZ(0);
+    will-change: transform;
+  }
+}
+
+/* Slide In Left Keyframe 
+   - Float an element in from the left side with GPU-accelerated translate */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%) translateZ(0);
+    will-change: transform;
+  }
+  to {
+    transform: translateX(0) translateZ(0);
+    will-change: transform;
+  }
+}
+
+/* Slide Out Left Keyframe 
+   - Move an element off to the left side with a smooth transition */
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0) translateZ(0);
+    will-change: transform;
+  }
+  to {
+    transform: translateX(-100%) translateZ(0);
+    will-change: transform;
+  }
+}
+
+/* Slide In Up Keyframe 
+   - Float an element in from the bottom with GPU-accelerated translate */
+@keyframes slideInUp {
+  from {
+    transform: translateY(100%) translateZ(0);
+    will-change: transform;
+  }
+  to {
+    transform: translateY(0) translateZ(0);
+    will-change: transform;
+  }
+}
+
+/* Slide Out Down Keyframe 
+   - Move an element off to the bottom with a smooth transition */
+@keyframes slideOutDown {
+  from {
+    transform: translateY(0) translateZ(0);
+    will-change: transform;
+  }
+  to {
+    transform: translateY(100%) translateZ(0);
+    will-change: transform;
+  }
+}
+
+/* Spin Keyframe 
+   - Rotate an element full-circle. Useful for loaders or highlight effects. */
+@keyframes spin {
+  from {
+    transform: rotate(0deg) translateZ(0);
+    will-change: transform;
+  }
+  to {
+    transform: rotate(360deg) translateZ(0);
+    will-change: transform;
+  }
+}
+
+/* Pulse Keyframe 
+   - Subtle scale effect to draw attention without abrupt movement */
+@keyframes pulse {
+  0% {
+    transform: scale(1) translateZ(0);
+    will-change: transform;
+  }
+  50% {
+    transform: scale(1.05) translateZ(0);
+    will-change: transform;
+  }
+  100% {
+    transform: scale(1) translateZ(0);
+    will-change: transform;
+  }
+}
+
+/* Shake Keyframe 
+   - Horizontal shaking animation, often used for error or invalid feedback */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0) translateZ(0);
+    will-change: transform;
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px) translateZ(0);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px) translateZ(0);
+  }
+}
+
+/* =============================================================================
+   ANIMATION UTILITY CLASSES
+   -----------------------------------------------------------------------------
+   These classes can be applied directly to elements to enable consistent,
+   GPU-accelerated motion effects. Reduced motion support ensures that users
+   who prefer less animation have a more accessible experience.
+============================================================================== */
+
+/* Fade-In Utility 
+   - Provides a gentle fade-in appearance using the fadeIn keyframe */
+.fade-in {
+  animation: fadeIn var(--transition-default) ease-in-out forwards;
+  backface-visibility: hidden; /* Improves rendering performance on some GPUs */
+}
+
+/* Reduced motion: disable any animation for user accessibility preferences */
+@media (prefers-reduced-motion: reduce) {
+  .fade-in {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Fade-Out Utility 
+   - Provides a gentle fade-out appearance using the fadeOut keyframe */
+.fade-out {
+  animation: fadeOut var(--transition-default) ease-in-out forwards;
+  backface-visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-out {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* =============================================================================
+   END OF FILE
+============================================================================== */
