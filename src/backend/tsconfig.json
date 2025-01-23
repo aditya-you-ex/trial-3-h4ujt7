@@ -1,0 +1,315 @@
+/* 
+  TypeScript configuration file for TaskStream AI backend services.
+
+  ---------------------------------------------------------------------------
+  EXTERNAL IMPORTS (per IE2):
+  - "typescript"@^5.0.0 : Required for compilation, type checking, and language services
+  ---------------------------------------------------------------------------
+
+  This file addresses the following requirements from the Technical Specifications:
+    1. Programming Languages (Section 4.1)
+       - TypeScript 5.0+ to achieve type safety and maintainability
+    2. Backend Frameworks (Section 4.2.1)
+       - Configuration that supports FastAPI, Django (through type definitions), Node.js/Express, and Go Fiber services
+
+  The exported object is divided into:
+    - compilerOptions: Detailed TypeScript compilation parameters
+    - include: Specifying which files the compiler should process
+    - exclude: Specifying which files and folders the compiler should ignore
+*/
+
+/* 
+  Comprehensive TypeScript configuration for NLP, analytics, authentication, 
+  and task management services with robust settings to ensure code quality, 
+  consistency, and correctness across the entire TaskStream AI backend.
+*/
+{
+  "compilerOptions": {
+    /* 
+      Target: Compiles TypeScript down to ECMAScript 2022 features, 
+      ensuring modern language capabilities are maintained.
+    */
+    "target": "ES2022",
+
+    /* 
+      Module: Uses CommonJS for compatibility across various backend 
+      Node.js environments, aligning with typical server-side packaging.
+    */
+    "module": "commonjs",
+
+    /* 
+      Lib: Includes ES2022 library features to leverage newer JavaScript 
+      functionalities in the TypeScript environment.
+    */
+    "lib": [
+      "ES2022"
+    ],
+
+    /* 
+      outDir: The directory where the compiler outputs the compiled JavaScript 
+      code and type definitions after the build is complete.
+    */
+    "outDir": "./dist",
+
+    /* 
+      rootDir: The root directory of input files, containing all TypeScript 
+      source code for the backend services.
+    */
+    "rootDir": "./src",
+
+    /* 
+      strict: Enables all strict type-checking options, enforcing additional 
+      rules to catch common issues early in development.
+    */
+    "strict": true,
+
+    /* 
+      moduleResolution: Node-based resolution, ensuring correct discovery 
+      of modules throughout the backend codebase.
+    */
+    "moduleResolution": "node",
+
+    /* 
+      baseUrl: Base directory used to resolve non-absolute module names;
+      set to "./src" for a clearer and more maintainable import structure.
+    */
+    "baseUrl": "./src",
+
+    /* 
+      paths: A mapping to reference internal modules without using 
+      relative paths. This improves navigation and maintainability.
+    */
+    "paths": {
+      "@shared/*": ["shared/*"],
+      "@config/*": ["config/*"],
+      "@services/*": ["services/*"],
+      "@api/*": ["api/*"],
+      "@nlp/*": ["nlp/*"],
+      "@analytics/*": ["analytics/*"],
+      "@auth/*": ["auth/*"],
+      "@task/*": ["task/*"],
+      "@middleware/*": ["shared/middleware/*"],
+      "@utils/*": ["shared/utils/*"],
+      "@interfaces/*": ["shared/interfaces/*"],
+      "@constants/*": ["shared/constants/*"],
+      "@models/*": ["shared/models/*"],
+      "@validators/*": ["shared/validators/*"]
+    },
+
+    /* 
+      esModuleInterop: Allows default imports from modules with 
+      incompatible CommonJS/ES Modules structures.
+    */
+    "esModuleInterop": true,
+
+    /* 
+      experimentalDecorators: Enables the use of decorators, which 
+      can be helpful in frameworks like Django (via TS definitions), 
+      FastAPI (through TS type usage), and Node/Express or Go bindings 
+      that rely on annotation-based features.
+    */
+    "experimentalDecorators": true,
+
+    /* 
+      emitDecoratorMetadata: Emits metadata for use by 
+      reflection-based libraries, essential for advanced 
+      dependency injection or real-time analytics introspection.
+    */
+    "emitDecoratorMetadata": true,
+
+    /* 
+      skipLibCheck: Skips type checking of declaration files 
+      (e.g., node_modules) to speed up building without 
+      compromising main project type safety.
+    */
+    "skipLibCheck": true,
+
+    /* 
+      forceConsistentCasingInFileNames: Enforces strict file name 
+      casing, preventing build issues on different operating systems.
+    */
+    "forceConsistentCasingInFileNames": true,
+
+    /* 
+      resolveJsonModule: Allows importing of .json files 
+      directly into TypeScript.
+    */
+    "resolveJsonModule": true,
+
+    /* 
+      removeComments: Strips comments from the generated 
+      JavaScript output to reduce file size and potential 
+      inadvertent information leaks.
+    */
+    "removeComments": true,
+
+    /* 
+      sourceMap: Generates .map files for debugging TypeScript 
+      code in a production or staging environment.
+    */
+    "sourceMap": true,
+
+    /* 
+      declaration: Generates .d.ts files, providing type 
+      definitions that can be consumed by other services 
+      or external plugins.
+    */
+    "declaration": true,
+
+    /* 
+      declarationMap: Creates source maps for declaration files, 
+      improving debugging and traceability of externally 
+      referenced type definitions.
+    */
+    "declarationMap": true,
+
+    /* 
+      noUnusedLocals: Raises errors if local variables 
+      are declared but never used.
+    */
+    "noUnusedLocals": true,
+
+    /* 
+      noUnusedParameters: Raises errors if function 
+      parameters are declared but never used.
+    */
+    "noUnusedParameters": true,
+
+    /* 
+      noImplicitReturns: Alerts when code paths do not return 
+      a value in functions or methods that are expected to.
+    */
+    "noImplicitReturns": true,
+
+    /* 
+      noFallthroughCasesInSwitch: Prevents unexpected behavior 
+      by disallowing fallthrough between switch statements.
+    */
+    "noFallthroughCasesInSwitch": true,
+
+    /* 
+      allowSyntheticDefaultImports: Permits default imports 
+      from modules without a default export, bridging 
+      CommonJS and ES modules.
+    */
+    "allowSyntheticDefaultImports": true,
+
+    /* 
+      types: Type declaration packages included in 
+      the compilation. This setup accommodates testing 
+      frameworks, Node types, and possible stubs for 
+      FastAPI, Django, and Express in TypeScript.
+    */
+    "types": [
+      "node",
+      "jest",
+      "express",
+      "fastapi",
+      "django"
+    ],
+
+    /* 
+      typeRoots: Directories for type definitions 
+      recognized by the TypeScript compiler.
+    */
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/types"
+    ],
+
+    /* 
+      incremental: Enables incremental compilation, 
+      speeding up subsequent builds by storing necessary 
+      information in a cache file.
+    */
+    "incremental": true,
+
+    /* 
+      tsBuildInfoFile: Location of the incremental build 
+      information file used for speeding up rebuilds.
+    */
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+
+    /* 
+      composite: Allows this configuration to be used as 
+      part of a project reference structure, supporting 
+      multi-project builds.
+    */
+    "composite": true,
+
+    /* 
+      noImplicitAny: Disallows variables or parameters 
+      typed implicitly as 'any', ensuring explicit 
+      type annotations.
+    */
+    "noImplicitAny": true,
+
+    /* 
+      strictNullChecks: Ensures that null and undefined 
+      are treated distinctly from other types, mitigating 
+      runtime errors.
+    */
+    "strictNullChecks": true,
+
+    /* 
+      strictFunctionTypes: Enhances type safety when 
+      assigning functions or methods.
+    */
+    "strictFunctionTypes": true,
+
+    /* 
+      strictBindCallApply: Checks the correctness of 
+      arguments in bind, call, and apply operations 
+      to reduce Probability of runtime exceptions.
+    */
+    "strictBindCallApply": true,
+
+    /* 
+      strictPropertyInitialization: Ensures that class 
+      properties are fully initialized within constructor 
+      scopes, preventing runtime undefined references.
+    */
+    "strictPropertyInitialization": true,
+
+    /* 
+      noImplicitThis: Ensures that 'this' is typed 
+      implicitly or declared explicitly, eliminating 
+      accidental scoping issues.
+    */
+    "noImplicitThis": true,
+
+    /* 
+      alwaysStrict: Parses files in strict mode and emits 
+      "use strict" for each source file, reinforcing ES 
+      strict compliance.
+    */
+    "alwaysStrict": true
+  },
+
+  /* 
+    INCLUDE: Directs the TypeScript compiler to scan 
+    and process all relevant .ts, .tsx, .json, and 
+    definition files across the backend.
+  */
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.json",
+    "src/types/**/*.d.ts"
+  ],
+
+  /* 
+    EXCLUDE: Omits specified folders and testing artifacts 
+    from compilation, reducing build time and ignoring 
+    irrelevant or dist-related code.
+  */
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/__tests__/**",
+    "**/__mocks__/**"
+  ]
+}
