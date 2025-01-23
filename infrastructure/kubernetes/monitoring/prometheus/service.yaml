@@ -1,0 +1,132 @@
+apiVersion: v1
+kind: Service
+
+# ------------------------------------------------------------------------------
+# This Kubernetes Service resource is responsible for exposing the Prometheus
+# monitoring server within the TaskStream AI platform. It is configured based
+# on the technical requirements for comprehensive system monitoring, including
+# the collection of container and application metrics, alerting support via
+# Alertmanager, and ensuring compliance with overall service reliability goals
+# (99.9% uptime).
+# ------------------------------------------------------------------------------
+
+metadata:
+  # --------------------------------------------------------------------------
+  # "name" establishes a unique identifier for this Service within the "monitoring"
+  # namespace. Matches the specification that it be called "prometheus-service."
+  # --------------------------------------------------------------------------
+  name: prometheus-service
+
+  # --------------------------------------------------------------------------
+  # "namespace" ensures this Service is placed in the "monitoring" namespace,
+  # logically separating it from other resources within the cluster.
+  # --------------------------------------------------------------------------
+  namespace: monitoring
+
+  # --------------------------------------------------------------------------
+  # "labels" provide logical grouping and selection constraints for the
+  # Prometheus application, enabling consistent identification across the
+  # cluster.
+  # - app: identifies the application name ("prometheus").
+  # - component: clarifies the component's function ("monitoring").
+  # - tier: denotes the service tier ("metrics") for clarity and segmentation.
+  # - version: versioning label for the Prometheus Service.
+  # - part-of: indicates this service is part of the "taskstream-monitoring"
+  #   stack, maintaining a reference back to the overarching project.
+  # --------------------------------------------------------------------------
+  labels:
+    app: prometheus
+    component: monitoring
+    tier: metrics
+    version: v1
+    part-of: taskstream-monitoring
+
+  # --------------------------------------------------------------------------
+  # "annotations" offer additional metadata to facilitate scraping by Prometheus
+  # and to configure AWS load balancer features when running on AWS.
+  # - prometheus.io/scrape: 'true' signals that Prometheus should scrape this
+  #   Service's endpoints.
+  # - prometheus.io/port: '9090' pinpoints the Prometheus metrics port.
+  # - prometheus.io/path: '/metrics' designates the path for metrics retrieval.
+  # - service.beta.kubernetes.io/aws-load-balancer-internal: 'true' ensures that
+  #   this load balancer is only reachable internally within the VPC.
+  # - service.beta.kubernetes.io/aws-load-balancer-backend-protocol: 'http'
+  #   sets the backend protocol for AWS.
+  # - service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: '60'
+  #   configures the idle timeout interval for connections using the AWS LB.
+  # --------------------------------------------------------------------------
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+    service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "60"
+
+spec:
+  # --------------------------------------------------------------------------
+  # "type: ClusterIP" ensures the Service is reachable from within the Kubernetes
+  # cluster through a stable internal IP address, providing metrics endpoints
+  # for other cluster components and external integrations via port-forwarding or
+  # ingress-based solutions.
+  # --------------------------------------------------------------------------
+  type: ClusterIP
+
+  # --------------------------------------------------------------------------
+  # "selector" directly correlates to the labels on the target Prometheus pods,
+  # ensuring traffic is directed only to pods bearing these matching labels.
+  # This is essential to discover the correct pods running the Prometheus server
+  # and Alertmanager functionalities.
+  # --------------------------------------------------------------------------
+  selector:
+    app: prometheus
+    component: monitoring
+    tier: metrics
+
+  # --------------------------------------------------------------------------
+  # "ports" define the publicly exposed ports of the Service. This configuration
+  # includes:
+  # 1) The Prometheus server port (9090) used for metrics collection, queries,
+  #    and the UI.
+  # 2) The Alertmanager port (9093) used for alert processing and routing.
+  #
+  # Each port is named to facilitate referencing them by name in other
+  # Kubernetes objects, and each uses the TCP protocol. The targetPort ensures
+  # traffic is routed to the correct container port.
+  #
+  # Note: The JSON specification exports these as:
+  #  - "prometheus-metrics" for the 9090 port
+  #  - "alertmanager" for the 9093 port
+  # --------------------------------------------------------------------------
+  ports:
+    - name: prometheus
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+    - name: alertmanager
+      port: 9093
+      targetPort: 9093
+      protocol: TCP
+
+  # --------------------------------------------------------------------------
+  # "sessionAffinity" configures how the Service routes incoming connections.
+  # "None" indicates that requests from the same client can be served by
+  # different backend pods, supporting load balancing across available pods.
+  # --------------------------------------------------------------------------
+  sessionAffinity: None
+
+  # --------------------------------------------------------------------------
+  # "publishNotReadyAddresses" is set to 'false', indicating that this Service
+  # should not include unready pod IPs in DNS responses. This is often utilized
+  # in conjunction with enabling or disabling headless services, stateful sets,
+  # or advanced service discovery patterns. In this configuration, we ensure we
+  # only publish if pods are ready.
+  # --------------------------------------------------------------------------
+  publishNotReadyAddresses: false
+
+  # --------------------------------------------------------------------------
+  # "internalTrafficPolicy" dictates how routing is handled within the cluster.
+  # "Cluster" ensures that cluster-wide endpoints can route to any healthy endpoint
+  # for the best reliability and performance, contributing to our 99.9% uptime goal.
+  # --------------------------------------------------------------------------
+  internalTrafficPolicy: Cluster
