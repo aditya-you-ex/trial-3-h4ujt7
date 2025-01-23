@@ -1,0 +1,192 @@
+################################################################################
+# KUBERNETES DEPLOYMENT MANIFEST FOR THE NLP SERVICE
+#
+# This file defines:
+#   1) A Deployment resource for high availability of the NLP service.
+#   2) A PodDisruptionBudget (PDB) for graceful shutdown and rolling updates.
+#   3) A HorizontalPodAutoscaler (HPA) to optimize resource usage.
+#
+# Extensive comments are included for clarity and maintainability.
+################################################################################
+
+################################################################################
+# DEPLOYMENT RESOURCE
+# ------------------------------------------------------------------------------
+# Implements the "NLPDeployment" class-like structure:
+#   - name:           "nlp-service"
+#   - namespace:      "taskstream"
+#   - replicas:       environment-based replica management (default: 3 for prod)
+#   - resources:      CPU/memory limits to ensure stable performance
+#   - probes:         Liveness/Readiness checks for system reliability
+#   - environment:    Used to configure environment-specific settings
+#   - volume mounts:  Placeholder section for any required volumes
+#   - security:       Run as non-root for enhanced security
+#   - node affinity:  Ensures distribution across available zones
+#   - topology spread constraints: Further ensures pods distribute for HA
+################################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # Exported named member: metadata
+  name: nlp-service
+  namespace: taskstream
+  labels:
+    app: nlp-service
+    component: nlp
+    tier: backend
+spec:
+  # Exported named member: spec
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nlp-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: nlp-service
+    spec:
+      # Security context at the Pod level
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 2000
+      # Example node affinity to ensure pods only run on general-purpose nodes
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/os
+                    operator: In
+                    values:
+                      - linux
+        podAntiAffinity:
+          # Ensures pods do not run on the same node, promoting HA
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: nlp-service
+                topologyKey: kubernetes.io/hostname
+      # Topology spread constraints across availability zones
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: nlp-service
+      containers:
+        - name: nlp-container
+          # External Imports (library versions):
+          # python 3.11-slim
+          # fastapi 0.104.0
+          # tensorflow 2.14.0
+          # nlp-service latest
+          image: "${CONTAINER_REGISTRY}/nlp-service:latest"
+          imagePullPolicy: Always
+          # Container resource requests/limits for stable performance
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          # Environment variables for NLP service configuration and tuning
+          env:
+            - name: APP_NAME
+              value: "nlp-service"
+            - name: ENVIRONMENT
+              value: "production"
+            - name: TASK_EXTRACTION_ACCURACY
+              value: "0.95"  # Target accuracy from requirements
+            - name: RESOURCE_OPTIMIZATION
+              value: "0.40"  # 40% resource optimization target
+            - name: UPTIME_TARGET
+              value: "99.9"  # 99.9% uptime target from specs
+          # Volume mounts can be used for config, logs, or ephemeral data
+          volumeMounts:
+            - name: nlp-logs
+              mountPath: /var/log/nlp
+              readOnly: false
+          # Health check probes (reflecting "healthcheck" function steps)
+          # Combined into a /health endpoint that validates readiness:
+          livenessProbe:
+            httpGet:
+              path: /health/liveness
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/readiness
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Container-level security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsUser: 1000
+      # Example ephemeral volume for logs (placeholder)
+      volumes:
+        - name: nlp-logs
+          emptyDir: {}
+status: {}
+---
+################################################################################
+# POD DISRUPTION BUDGET
+# ------------------------------------------------------------------------------
+# Ensures that at least two replicas remain available during voluntary disruptions
+################################################################################
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: nlp-service-pdb
+  namespace: taskstream
+  labels:
+    app: nlp-service
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: nlp-service
+---
+################################################################################
+# HORIZONTAL POD AUTOSCALER
+# ------------------------------------------------------------------------------
+# Scales the Deployment automatically based on CPU utilization to improve
+# resource optimization and maintain performance during peak loads.
+################################################################################
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nlp-service-hpa
+  namespace: taskstream
+  labels:
+    app: nlp-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nlp-service
+  minReplicas: 2
+  maxReplicas: 5
+  # Target CPU utilization for scaling
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
