@@ -1,0 +1,245 @@
+###############################################################################
+# KONG INGRESS CONTROLLER & GATEWAY CONFIGURATION
+# -----------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This Kubernetes manifest sets up the Kong Ingress Controller for managing
+#   API traffic, SSL termination, and routing within the TaskStream AI platform.
+#   It references the "routes.yaml" (imported internally) for actual Ingress
+#   routing rules (ingress-rules). The deployment includes enhanced security,
+#   monitoring, and high availability features, aligning with technical
+#   specifications:
+#     - API Gateway Pattern (2.1 High-Level Architecture)
+#     - System Reliability (Success Criteria of 99.9% uptime)
+#     - Security Architecture (2.4.2) for TLS, WAF, rate limiting, etc.
+#
+# EXTERNAL IMPORTS (IE2):
+#   - Kong Ingress Controller (v2.11):
+#       image: "kong/kubernetes-ingress-controller:2.11"
+#       purpose: Centralized API gateway with advanced security features
+#   - Kong Gateway (v3.4) reference:
+#       The underlying gateway logic used by the Ingress Controller
+#
+# INTERNAL IMPORTS (IE1):
+#   - "routes.yaml" from the same folder, which defines "ingress-rules"
+#     for path-based routing, TLS termination, and advanced rate limiting.
+#
+# GLOBALS (FROM JSON SPEC):
+#   - NAMESPACE: "taskstream-system"
+#   - KONG_VERSION: "3.4"
+#   - KONG_DB_MODE: "dbless"
+#   - KONG_PROXY_LISTEN: "0.0.0.0:8000, 0.0.0.0:8443 ssl http2"
+#   - KONG_ADMIN_LISTEN: "127.0.0.1:8001"
+#   - KONG_SSL_CERT_PATH: "/etc/kong-ssl/tls.crt"
+#   - KONG_SSL_KEY_PATH: "/etc/kong-ssl/tls.key"
+#
+# CONTENTS:
+#   1) ServiceAccount:  kong-serviceaccount
+#   2) Deployment:      kong-ingress-controller
+#   3) Service:         kong-proxy
+#
+# EXPORTS (FROM JSON SPEC):
+#   - name: "kong-ingress-controller"
+#     members_exposed:
+#       - member_name: "deployment"
+#       - member_name: "service"
+###############################################################################
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kong-serviceaccount
+  namespace: taskstream-system
+  annotations:
+    kubernetes.io/enforce-mountable-secrets: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong-ingress-controller
+  namespace: taskstream-system
+
+  ###########################################################################
+  # METADATA ANNOTATIONS FOR MONITORING INTEGRATION
+  #   - prometheus.io/scrape: "true" => Tells Prometheus to scrape the pods.
+  #   - prometheus.io/port:   "8100" => The container exposes metrics on port
+  #     8100 (enabled via --enable-metrics).
+  #   - prometheus.io/path:   "/metrics" => The endpoint path for metrics data.
+  ###########################################################################
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8100"
+    prometheus.io/path: "/metrics"
+spec:
+  ###########################################################################
+  # REPLICAS & STRATEGY
+  #   - replicas: 3 => Achieves high availability and load distribution.
+  #   - RollingUpdate => Zero downtime upgrades with maxSurge=1, maxUnavailable=0.
+  ###########################################################################
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  ###########################################################################
+  # SELECTORS & TEMPLATE
+  #   The Pod template must carry the appropriate matching labels, so that
+  #   the ReplicaSet knows which pods it manages. Meanwhile, we keep extra
+  #   annotations for Prometheus scraping in the Pod metadata.
+  ###########################################################################
+  selector:
+    matchLabels:
+      app: kong-ingress-controller
+  template:
+    metadata:
+      labels:
+        app: kong-ingress-controller
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8100"
+        prometheus.io/path: "/metrics"
+    spec:
+      #######################################################################
+      # SERVICE ACCOUNT
+      #   - Assigns the "kong-serviceaccount" to the pods, enabling minimal
+      #     RBAC privileges consistent with enterprise security standards.
+      #######################################################################
+      serviceAccountName: kong-serviceaccount
+
+      #######################################################################
+      # TERMINATION GRACE & AFFINITY
+      #   - terminationGracePeriodSeconds: 60 => Allows graceful shutdown.
+      #   - affinity => PodAntiAffinity ensures that the scheduling tries
+      #     to place pods on different nodes for resilience.
+      #######################################################################
+      terminationGracePeriodSeconds: 60
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - kong-ingress-controller
+              topologyKey: kubernetes.io/hostname
+
+      #######################################################################
+      # SECURITY CONTEXT
+      #   - runAsNonRoot => Avoid privileged user (root).
+      #   - runAsUser/fsGroup = 1000 => Safe numeric UID/GID for the container.
+      #######################################################################
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      #######################################################################
+      # CONTAINERS: KONG INGRESS CONTROLLER
+      #   - Using Kong Ingress Controller image v2.11 (which integrates Kong
+      #     Gateway under the hood with DB-less config).
+      #   - Passing arguments to define the Ingress Class, the Admin URL, the
+      #     publish-service used by load balancers, metrics, and status updates.
+      #   - Environment variables:
+      #       CONTROLLER_ADMISSION_WEBHOOK_LISTEN => Webhook port (8080).
+      #       CONTROLLER_PUBLISH_SERVICE         => Service name for status.
+      #   - Container port 8080 => Webhook, for admission features.
+      #   - Resource requests/limits => Balanced CPU/memory for production.
+      #   - Liveness/Readiness => Poll /healthz on port 10254 for controller.
+      #######################################################################
+      containers:
+        - name: kong-ingress-controller
+
+          # External import: kong/kubernetes-ingress-controller:2.11 (IE2)
+          image: "kong/kubernetes-ingress-controller:2.11"
+          args:
+            - --ingress-class=kong
+            - --kong-admin-url=http://localhost:8001
+            - --publish-service=taskstream-system/kong-proxy
+            - --enable-metrics=true
+            - --update-status=true
+          env:
+            - name: CONTROLLER_ADMISSION_WEBHOOK_LISTEN
+              value: "0.0.0.0:8080"
+            - name: CONTROLLER_PUBLISH_SERVICE
+              value: "taskstream-system/kong-proxy"
+          ports:
+            - containerPort: 8080
+              name: webhook
+              protocol: TCP
+          resources:
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10254
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 10254
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-proxy
+  namespace: taskstream-system
+  ###########################################################################
+  # LABELS & ANNOTATIONS
+  #   - The labels must match "app: kong-ingress-controller" for the pod
+  #     selection. This Service is published to the controller via the arg
+  #     --publish-service=taskstream-system/kong-proxy.
+  #   - Typically we can annotate it for an external LoadBalancer, or keep
+  #     minimal if using an internal cluster approach. Below is an example
+  #     with typical cross-zone LB annotations for AWS, if needed.
+  ###########################################################################
+  labels:
+    app: kong-ingress-controller
+    component: kong-gateway
+    managed-by: taskstream
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+
+spec:
+  ###########################################################################
+  # TYPE => LoadBalancer
+  #   - Exposes the Kong proxy externally. If you only need internal usage,
+  #     you could switch to "NodePort" or "ClusterIP" in certain scenarios.
+  ###########################################################################
+  type: LoadBalancer
+
+  ###########################################################################
+  # PORT MAPPINGS
+  #   - port: 80    => Routes to container port 8000 (plain HTTP).
+  #   - port: 443   => Routes to container port 8443 (HTTPS/TLS).
+  #   The container behind it listens to KONG_PROXY_LISTEN for 8000/8443.
+  ###########################################################################
+  ports:
+    - name: proxy
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+    - name: proxy-ssl
+      port: 443
+      targetPort: 8443
+      protocol: TCP
+
+  ###########################################################################
+  # SELECTOR
+  #   - Must match the label specified in the deployment Pod spec,
+  #     e.g. "app=kong-ingress-controller".
+  ###########################################################################
+  selector:
+    app: kong-ingress-controller
