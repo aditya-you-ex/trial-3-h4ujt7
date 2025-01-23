@@ -1,0 +1,250 @@
+################################################################################
+# KUBERNETES DEPLOYMENT CONFIGURATION FOR TASKSTREAM AI - TASKS SERVICE
+# ------------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This file defines the Kubernetes Deployment resource for the TaskStream AI
+#   "tasks" service (Task Manager). The configuration enforces:
+#     • High availability (minimum 5 replicas, RollingUpdate strategy).
+#     • Resource requests/limits aligned with tasks-limits (LimitRange).
+#     • Namespace-level ResourceQuota (tasks-quota) to prevent resource misuse.
+#     • Pod security attributes (runAsNonRoot, fsGroup, seccompProfile).
+#     • Liveness/Readiness/Startup probes for production readiness checks.
+#     • Affinity rules to distribute pods across nodes (podAntiAffinity).
+#
+# INTERNAL REFERENCES (IE1):
+#   1) Resource Quota: tasks-quota (from resource-quotas.yaml) in namespace "tasks".
+#   2) Limit Range: tasks-limits (from limit-ranges.yaml) in namespace "tasks".
+#   3) Service Account: tasks-service-account (from rbac.yaml / service-accounts.yaml).
+#
+# EXTERNAL IMPORTS (IE2):
+#   - kubernetes (apps/v1)  # For Deployment resource compatibility.
+#
+# TECHNICAL SPECIFICATIONS ALIGNMENT:
+#   - Aligns with "High-Level Architecture" (2.1) and "Deployment Architecture" (2.5).
+#   - Satisfies "Infrastructure Requirements" (2.5.1) and "Scaling Parameters" (2.5.2).
+#   - Reflects "Containerization" guidelines (8.3), including resource management,
+#     security contexts, and health monitoring.
+#   - Encourages best practices for enterprise-grade production security, reliability, 
+#     and maintainability.
+#
+# LAST REVIEWED:
+#   - Maintainer: infra-team
+#   - Date: 2023-10-01
+################################################################################
+
+apiVersion: apps/v1
+kind: Deployment
+
+###############################################################################
+# METADATA SECTION
+# -----------------------------------------------------------------------------
+# name:        The logical identifier for this Deployment within the "tasks"
+#              namespace.
+# namespace:   Must match the namespace where tasks-limits (LimitRange) and
+#              tasks-quota (ResourceQuota) are enforced.
+# labels:      Used for service discovery, management, and versioning.
+# annotations: Additional metadata to track deployment changes, cause, 
+#              resource/limit references, and Prometheus scraping compatibility.
+###############################################################################
+metadata:
+  name: taskstream-tasks
+  namespace: tasks
+  labels:
+    app: taskstream
+    component: tasks
+    environment: "${ENV}"
+    version: "${VERSION}"
+    managed-by: "kubernetes"
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    kubernetes.io/change-cause: "Initial deployment"
+    resourcequota.taskstream.ai/enabled: "true"
+    limitrange.taskstream.ai/enforced: "true"
+
+###############################################################################
+# SPEC SECTION
+# -----------------------------------------------------------------------------
+# replicas:         Number of pod replicas desired. In this example, we set 5 
+#                   as the minimum to ensure high availability under typical 
+#                   production workloads.
+# selector:         Matches pods labeled with 'app=taskstream' AND 
+#                   'component=tasks' so the ReplicaSet can manage them.
+# strategy:         Rolling update strategy with maxSurge=1, maxUnavailable=0
+#                   ensures zero downtime deployments and safe release cycles.
+# template:         Defines the Pod specs (metadata + spec).
+###############################################################################
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: taskstream
+      component: tasks
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  #############################################################################
+  # POD TEMPLATE
+  # ---------------------------------------------------------------------------
+  # metadata.labels:      Must match the Deployment selector labels.
+  # metadata.annotations:  Setup relevant metrics scraping configurations for 
+  #                       Prometheus. Also references checksums for config/secrets.
+  # spec.containers:       Defines container images, ports, environment variables,
+  #                       resource requests/limits, and health probes.
+  #############################################################################
+  template:
+    metadata:
+      labels:
+        app: taskstream
+        component: tasks
+        version: "${VERSION}"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3002"
+        prometheus.io/path: "/metrics"
+        checksum/config: "${CONFIG_CHECKSUM}"
+        checksum/secrets: "${SECRETS_CHECKSUM}"
+    spec:
+      containers:
+        - name: tasks
+          image: "${ECR_REGISTRY}/taskstream/tasks:${IMAGE_TAG}"
+          imagePullPolicy: Always
+
+          #####################################################################
+          # CONTAINER PORTS
+          #   1) HTTP traffic (Primary service port 3002)
+          #   2) Metrics port (9090) to expose internal application metrics
+          #####################################################################
+          ports:
+            - name: http
+              containerPort: 3002
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+
+          #####################################################################
+          # ENVIRONMENT VARIABLES
+          #   - NODE_ENV: standard Node.js environment indicator
+          #   - SERVICE_NAME, SERVICE_PORT, SERVICE_HOST: used by the tasks
+          #     service to dynamically configure listening behavior
+          # envFrom:
+          #   - Merges additional configuration from a ConfigMapRef and 
+          #     secretRef for sensitive values (e.g., credentials).
+          #####################################################################
+          env:
+            - name: NODE_ENV
+              value: "${ENV}"
+            - name: SERVICE_NAME
+              value: "task-service"
+            - name: SERVICE_PORT
+              value: "3002"
+            - name: SERVICE_HOST
+              value: "0.0.0.0"
+          envFrom:
+            - configMapRef:
+                name: tasks-config
+            - secretRef:
+                name: tasks-secrets
+
+          #####################################################################
+          # RESOURCE REQUESTS/LIMITS
+          # Aligned with tasks-limits (LimitRange) and enforced by tasks-quota
+          # (ResourceQuota) at the namespace level.
+          #####################################################################
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+
+          #####################################################################
+          # PROBES (LIVENESS, READINESS, STARTUP)
+          #   - Liveness Probe:  Checks /health endpoint to ensure the container
+          #                     remains responsive.
+          #   - Readiness Probe: Checks /ready endpoint to confirm the service 
+          #                     is ready to accept traffic.
+          #   - Startup Probe:   Safeguards slower initial startup times for 
+          #                     Node.js or other dependencies.
+          #####################################################################
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3002
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 3002
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+
+      #########################################################################
+      # POD-LEVEL SECURITY CONTEXT
+      #   - runAsNonRoot:     Forces process to run as non-root user.
+      #   - runAsUser, fsGroup: Ensures correct UID/GID ownership in volumes.
+      #   - seccompProfile:    Use "RuntimeDefault" for minimal kernel attack
+      #                       surface per the PodSecurityPolicy "restricted".
+      #########################################################################
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      #########################################################################
+      # SERVICE ACCOUNT
+      #   - Must match the one defined for tasks service in rbac.yaml /
+      #     service-accounts.yaml (tasks-service-account).
+      #   - Ensures minimal RBAC privileges, aligning with principle of 
+      #     least privilege.
+      #########################################################################
+      serviceAccountName: tasks-service-account
+
+      #########################################################################
+      # TERMINATION GRACE PERIOD
+      #   - Provides the container a maximum of 60 seconds to gracefully shut
+      #     down, handle cleanup, etc., before being forcibly terminated.
+      #########################################################################
+      terminationGracePeriodSeconds: 60
+
+      #########################################################################
+      # AFFINITY RULES
+      #   - PodAntiAffinity: Attempt to schedule pods on different hosts to 
+      #     improve resiliency if a node fails.
+      #   - Weighted at 100 for strong preference.
+      #########################################################################
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - taskstream
+                topologyKey: kubernetes.io/hostname
