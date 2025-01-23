@@ -1,0 +1,179 @@
+{
+  /* 
+   * Manifest version used for internal taskstream AI schema reference.
+   * This helps ensure compatibility across multiple deployment environments.
+   */
+  "manifest_version": "2.0",
+
+  /*
+   * The official name of the Progressive Web App (PWA),
+   * displayed on installation prompts and device homescreens.
+   */
+  "name": "TaskStream AI",
+
+  /*
+   * The short name is used where space is limited, such as
+   * device home screen app labels or system-level menus.
+   */
+  "short_name": "TaskStream",
+
+  /*
+   * A concise description of the service. This text may be shown
+   * to users when they install or share the application.
+   */
+  "description": "AI-powered project management platform",
+
+  /*
+   * Icons for various devices, screen sizes, and use-cases.
+   * This includes the brand logo (SVG), high-resolution PNGs, and a favicon.
+   * The 'purpose' attribute includes 'maskable' to enhance brand visibility
+   * with modern adaptive icon shapes.
+   */
+  "icons": [
+    {
+      "src": "logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ],
+
+  /*
+   * Defines the URL that should be opened when the user
+   * launches this web application from their home screen.
+   */
+  "start_url": ".",
+
+  /*
+   * The display mode of the application.
+   * 'standalone' hides standard browser UI elements
+   * to provide a more native-app-like experience.
+   */
+  "display": "standalone",
+
+  /*
+   * The theme color for the application. Used by the operating system
+   * to colorize taskbar elements or the browser UI where supported.
+   * This color is part of the design system's primary palette (#2563EB).
+   */
+  "theme_color": "#2563EB",
+
+  /*
+   * The background color while the application is loading,
+   * before content is fully rendered. Set to a neutral brand color (#FFFFFF).
+   */
+  "background_color": "#FFFFFF",
+
+  /*
+   * Allows any device orientation usage. Possible values include
+   * 'portrait', 'landscape', or 'any' to adapt to user preference.
+   */
+  "orientation": "any",
+
+  /*
+   * Defines the navigation scope. Users will remain in-scope (within '/')
+   * rather than opening external URLs in a browser tab.
+   */
+  "scope": "/",
+
+  /*
+   * Primary application language set to US English for
+   * localization and accessibility compliance.
+   */
+  "lang": "en-US",
+
+  /*
+   * Sets reading direction to left-to-right for user interfaces
+   * in English or other LTR languages.
+   */
+  "dir": "ltr",
+
+  /*
+   * Categorizes the app in app stores or user agents that support
+   * classification, aiding in discoverability.
+   */
+  "categories": [
+    "productivity",
+    "business"
+  ],
+
+  /*
+   * Indicates whether the user agent should prefer related applications
+   * on the platform over this web app. Typically set to 'false' to
+   * highlight the PWA as the preferred experience.
+   */
+  "prefer_related_applications": false,
+
+  /*
+   * Shortcuts provide direct-access entry points to critical user flows
+   * within the application. Displayed by some operating systems when
+   * the user long-presses or right-clicks the app icon.
+   */
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "description": "View your project dashboard"
+    },
+    {
+      "name": "New Task",
+      "url": "/tasks/new",
+      "description": "Create a new task"
+    }
+  ],
+
+  /*
+   * Screenshots provide previews of the application in install prompts,
+   * stores, or device contexts. They illustrate how the app appears on
+   * desktop and mobile form factors.
+   */
+  "screenshots": [
+    {
+      "src": "screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "screenshot-mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+
+  /*
+   * Lists any native applications that are related,
+   * typically for cross-launch contexts. Empty here for now.
+   */
+  "related_applications": [],
+
+  /*
+   * Protocol handlers enable the web app to handle links that
+   * begin with a custom scheme, such as "web+taskstream://"
+   * This allows deeper platform integration across browsers.
+   */
+  "protocol_handlers": [
+    {
+      "protocol": "web+taskstream",
+      "url": "/link?url=%s"
+    }
+  ]
+}
