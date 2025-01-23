@@ -1,0 +1,279 @@
+###################################################################################################
+# CHART NAME: integration-service
+# CHART VERSION: 1.0.0
+#
+# This Helm values file defines enterprise-grade configuration for the Integration Service
+# in TaskStream AI. It focuses on robust security, reliability (99.9% uptime goal), and
+# container orchestration best practices (multi-region AWS EKS, advanced security, monitoring).
+#
+# References:
+#  1) deployment.yaml:
+#     - Base Kubernetes Deployment schema and usage of these Helm values (image,
+#       resource requests, securityContext, and service port).
+#  2) service.yaml:
+#     - ClusterIP Service definition referencing the same labels and ports in alignment
+#       with the integrated environment.
+#  3) hpa.yaml:
+#     - Horizontal Pod Autoscaler definitions controlling minimum/maximum replicas.
+#     - This file’s autoscaling section ensures consistent scaling strategy.
+#  4) config.go:
+#     - Enhanced integration configuration structure (email, Slack, Jira) mapped
+#       via these Helm values into the container environment.
+#
+# Requirements Addressed:
+#  - Integration Framework: Secure integration to external tools (email, Slack, Jira) with
+#    validated certificates and robust retry logic.
+#  - System Reliability: Rolling updates, robust readiness/liveness probes, autoscaling, and
+#    resource constraints to maintain 99.9% uptime.
+#  - Container Orchestration: Multi-region EKS-based design with advanced security settings
+#    (non-root user, seccompProfile, read-only filesystem).
+#
+# Usage Notes:
+#  - Modify these values to tighten security (adjust CPU/memory, timeouts, or TLS settings).
+#  - All secrets (e.g., credentials, tokens) should be handled via encrypted secret management
+#    in production (e.g., sealed secrets, external vaults).
+###################################################################################################
+
+chartName: "integration-service"
+chartVersion: "1.0.0"
+
+###################################################################################################
+# IMAGE CONFIGURATION
+# Defines the container image for the Integration Service. The repository, tag, and pull policy
+# may be updated per release or environment. The 'pullPolicy' is set to 'Always' for ensuring
+# the latest image is fetched during redeployment.
+###################################################################################################
+image:
+  repository: "taskstream/integration-service"
+  tag: "latest"
+  pullPolicy: "Always"
+
+###################################################################################################
+# NAME OVERRIDES
+# Helm chart's standard overrides. Allows renaming or prefixing the chart and resource names.
+# Typically kept empty to rely on the standard naming patterns in enterprise contexts.
+###################################################################################################
+nameOverride: ""
+fullnameOverride: ""
+
+###################################################################################################
+# REPLICA COUNT
+# Default number of replicas for the Integration Service. This is a baseline that the
+# Horizontal Pod Autoscaler can override if autoscaling is enabled.
+###################################################################################################
+replicaCount: 3
+
+###################################################################################################
+# DEPLOYMENT CONFIGURATION
+# Holds annotations, resources, deployment strategy, container security, and service settings.
+# These values map directly to the spec of the Kubernetes Deployment (deployment.yaml).
+###################################################################################################
+deployment:
+
+  #############################################################################################
+  # ANNOTATIONS
+  # Provide metadata at the Deployment or Pod level for monitoring, security, or versioning.
+  # 'prometheus.io/scrape' indicates that Prometheus should collect metrics from the pods.
+  #############################################################################################
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+    security.kubernetes.io/enforce-seccomp: "true"
+
+  #############################################################################################
+  # RESOURCES
+  # CPU and memory requests/limits ensure balanced resource allocation. Bumps in traffic
+  # are handled by the autoscaling policy, while these setting provide guaranteed resources.
+  #
+  # - requests: Minimum CPU/memory reserved for this service.
+  # - limits:   Maximum CPU/memory the container may consume.
+  #############################################################################################
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+
+  #############################################################################################
+  # STRATEGY
+  # Defines the rolling update strategy for the Deployment. This ensures zero downtime
+  # when new versions are deployed, by incrementally updating pods.
+  #############################################################################################
+  strategy:
+    type: "RollingUpdate"
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  #############################################################################################
+  # SECURITY CONTEXT
+  # Enforces non-root operation, seccomp runtime profiles, and read-only filesystems.
+  # This meets enterprise security standards and is recommended for production-grade
+  # workloads.
+  #############################################################################################
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: "RuntimeDefault"
+    capabilities:
+      drop:
+        - "ALL"
+    readOnlyRootFilesystem: true
+
+  #############################################################################################
+  # SERVICE
+  # The basic service configuration (type, port) for the Integration Service. Typically a
+  # ClusterIP is sufficient, as traffic is often handled by an Ingress or external load
+  # balancer in advanced setups.
+  #############################################################################################
+  service:
+    type: "ClusterIP"
+    port: 8080
+
+  #############################################################################################
+  # CONFIG
+  # Integration-specific configuration mapped from the codebase (config.go) into
+  # Kubernetes environment variables or config maps. The 'validateCertificate' or
+  # 'validateConnection' flags ensure SSL/TLS is properly enforced.
+  #
+  # Retry logic (retryAttempts, retryDelay) ensures ephemeral errors do not cause
+  # permanent failures. Timeouts protect the service from blocking calls.
+  #############################################################################################
+  config:
+
+    email:
+      host: ""
+      port: 587
+      useTLS: true
+      fromAddress: ""
+      retryAttempts: 3
+      retryDelay: "5s"
+      validateCertificate: true
+
+    slack:
+      defaultChannel: "taskstream-notifications"
+      timeout: "30s"
+      retryAttempts: 3
+      validateWebhook: true
+
+    jira:
+      baseURL: ""
+      projectKey: ""
+      timeout: "30s"
+      retryAttempts: 3
+      validateConnection: true
+
+    # Specifies whether verbose logging is enabled and sets a global integration timeout.
+    # Setting 'debug: true' can help with diagnosing integration issues in staging.
+    debug: false
+    timeout: "30s"
+
+  #############################################################################################
+  # SECRETS
+  # Container environment secrets that hold usernames, passwords, tokens, etc.
+  # For production, these should be referenced from encrypted Kubernetes secrets
+  # or an external vault solution. Here, placeholders are provided for convenience.
+  #############################################################################################
+  secrets:
+    email:
+      username: ""
+      password: ""
+    slack:
+      apiToken: ""
+    jira:
+      username: ""
+      apiToken: ""
+
+  #############################################################################################
+  # PROBES
+  # Health checks used by Kubernetes to ensure service reliability:
+  # - livenessProbe:  Regularly checks if the pod is healthy; restarts if unhealthy.
+  # - readinessProbe: Determines if the app is ready to receive traffic to maintain 99.9% uptime.
+  #
+  # Setting 'scheme: HTTPS' presupposes that an SSL or TLS endpoint is served by
+  # an internal mechanism such as a sidecar or direct TLS in the container.
+  #############################################################################################
+  probes:
+    liveness:
+      httpGet:
+        path: "/health"
+        port: 8080
+        scheme: "HTTPS"
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+    readiness:
+      httpGet:
+        path: "/ready"
+        port: 8080
+        scheme: "HTTPS"
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 2
+
+  #############################################################################################
+  # AUTOSCALING
+  # Feature toggles horizontal scaling. If enabled, usage metrics (CPU, memory) modify
+  # the Deployment's replica count within defined min/max bounds.
+  # scaleDownStabilizationWindowSeconds: Retains extra pods for a buffer
+  # before reducing capacity again, helping to avoid thrashing under bursty loads.
+  #############################################################################################
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+    scaleDownStabilizationWindowSeconds: 300
+
+  #############################################################################################
+  # POD DISRUPTION BUDGET
+  # Ensures a minimum number of pods remain available during node maintenance or
+  # cluster disruptions. This setting further contributes to the 99.9% uptime goal
+  # by limiting concurrent disruptions.
+  #############################################################################################
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+  #############################################################################################
+  # NODE SELECTOR
+  # Restricts scheduling of these pods onto specific nodes by key/value matches.
+  # Often used to separate high-CPU or GPU nodes. By default, empty to allow
+  # scheduling on any node.
+  #############################################################################################
+  nodeSelector: {}
+
+  #############################################################################################
+  # TOLERATIONS
+  # Allows pods to be scheduled on nodes with matching taints. This can be used
+  # to run specialized workloads that require or tolerate certain infrastructure states.
+  # By default, no tolerations are specified.
+  #############################################################################################
+  tolerations: []
+
+  #############################################################################################
+  # AFFINITY
+  # Pod affinity/anti-affinity rules to spread pods across different nodes or
+  # to avoid single points of failure. The example below ensures pods from the same
+  # application are not co-located on the same node where possible.
+  #############################################################################################
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: "app"
+                  operator: "In"
+                  values:
+                    - "integration-service"
+            topologyKey: "kubernetes.io/hostname"
