@@ -1,0 +1,94 @@
+################################################################################
+# HELM CHART: TaskStream AI Integration Service
+# FILE: Chart.yaml
+#
+# DESCRIPTION:
+#   Enterprise-grade Helm chart definition for the Integration Service that
+#   manages external service connections, including email, chat platforms,
+#   project management tools, and enterprise system integrations. This chart
+#   enforces high availability, scalability, and reliability in multi-region
+#   Kubernetes clusters (e.g., AWS EKS). It references:
+#     - Internal Import: infrastructure/helm/values/integration.yaml
+#       (imported as named object "Values" containing resource limits,
+#        connection settings, autoscaling, etc.)
+#     - External Import: "helm.sh/helm/v3" (v3.12+) for templating and packaging.
+#
+# REQUIREMENTS ADDRESSED:
+#   1) Integration Framework: Connects with existing enterprise tools (email, Slack,
+#      Teams, Jira, etc.) as specified in the integral architecture.
+#   2) System Reliability: Pursues 99.9% uptime through multi-region deployment,
+#      robust scaling, rolling updates, and advanced security configurations.
+#   3) Container Orchestration: Designed for multi-region AWS EKS with horizontally
+#      scalable container infrastructure for continuous enterprise operations.
+#
+# SCHEMA COMPLIANCE:
+#   - Helm Chart APIVersion: v2
+#   - Helm Chart Type: application
+#   - All fields comply with standard Helm chart definitions for metadata, versioning,
+#     maintainers, keywords, annotations, and dependencies.
+#
+# USAGE NOTES:
+#   - Values are derived from "infrastructure/helm/values/integration.yaml" to ensure
+#     enterprise-level reliability, security, and advanced resource constraints.
+#   - For production, align with recommended best practices for secret management,
+#     CI/CD, and security scanning.
+################################################################################
+
+apiVersion: "v2"               # Must match the Helm chart schema version
+name: "integration-service"     # Unique name identifying the Integration Service chart
+description: >
+  TaskStream AI Integration Service for managing external service connections with
+  enterprise tools including email systems, chat platforms, and project management
+  tools. Provides high availability, scalability, and reliable integration capabilities.
+type: "application"            # Defines chart type as an application
+version: "1.0.0"               # Chart version, increment on every chart release
+appVersion: "1.0.0"            # Application version, aligns with the Integration Service app
+
+################################################################################
+# KEYWORDS & MAINTAINERS
+################################################################################
+keywords:
+  - "integration"
+  - "email"
+  - "slack"
+  - "teams"
+  - "jira"
+  - "asana"
+  - "enterprise-integration"
+  - "taskstream"
+  - "high-availability"
+  - "scalable"
+
+maintainers:
+  - name: "TaskStream DevOps Team"
+    email: "devops@taskstream.ai"
+    url: "https://taskstream.ai/team"
+
+################################################################################
+# DEPENDENCIES
+# Declares dependent charts, typically a local "common" chart for shared config,
+# or remote charts if needed. Condition allows toggling via values.yaml.
+################################################################################
+dependencies:
+  - name: "common"
+    version: "1.x.x"
+    repository: "file://../common"
+    condition: "common.enabled"
+
+################################################################################
+# ANNOTATIONS
+# Provide metadata for external indexing services (e.g., Artifact Hub),
+# specifying change history, licensing, and recommended or stable usage.
+################################################################################
+annotations:
+  artifacthub.io/changes: "Initial release of integration service chart with enterprise integration capabilities"
+  artifacthub.io/containsSecurityUpdates: "false"
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/recommendations: "true"
+  artifacthub.io/license: "Apache-2.0"
+  artifacthub.io/maintainers: "TaskStream DevOps Team"
+  artifacthub.io/provider: "TaskStream AI"
+  artifacthub.io/signKey: "verified"
+  kubernetes.io/version: ">=1.21.0"
+  taskstream.ai/reliability: "high-availability"
+  taskstream.ai/deployment: "multi-region"
