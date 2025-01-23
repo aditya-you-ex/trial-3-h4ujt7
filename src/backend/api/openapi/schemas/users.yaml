@@ -1,0 +1,333 @@
+openapi: "3.0.3"
+
+################################################################################
+# OpenAPI schema definitions for user management endpoints, including user
+# profiles, authentication, authorization, and enhanced security features in
+# the TaskStream AI platform.
+#
+# Imports:
+#   - Using openapi-types@^12.1.0 (not directly imported here, but compliance noted)
+#   - Using js-yaml@^4.1.0 for parsing and generation
+#   - Internal references to ./common.yaml#/components/schemas/MetadataSchema
+#
+# This file addresses the following requirements:
+#  (1) Authentication & Authorization (7.1)
+#  (2) Security Architecture (2.4.2)
+#  (3) Authorization Matrix (7.1.2)
+################################################################################
+
+info:
+  title: "TaskStream AI - User Management Schemas"
+  version: "1.0.0"
+  description: >
+    Comprehensive OpenAPI schemas for user management, including enhanced security,
+    multi-factor authentication, and role-based access control.
+
+paths: {}
+
+components:
+  schemas:
+
+    ############################################################################
+    # UserSchema
+    # --------------------------------------------------------------------------
+    # Enhanced user object schema with additional security fields, aligning
+    # with TaskStream AI's advanced RBAC and MFA requirements.
+    # Implements steps from generateUserSchema in the JSON specification.
+    ############################################################################
+    UserSchema:
+      type: object
+      title: "UserSchema"
+      x-schema-version: "1.0.0"
+      x-schema-deprecated: false
+      description: >
+        Represents the primary structure of a user record within TaskStream AI,
+        incorporating role-based access, multi-factor authentication, and security
+        event tracking in compliance with enterprise-grade security standards.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: >
+            Globally unique identifier (UUID) for the user. Must conform
+            strictly to RFC 4122.
+        email:
+          type: string
+          format: email
+          description: >
+            Email address of the user adhering to strict RFC 5322 validation rules.
+        firstName:
+          type: string
+          description: >
+            User's given name. Sanitized to prevent potential XSS vulnerabilities.
+        lastName:
+          type: string
+          description: >
+            User's family name. Sanitized to prevent potential XSS vulnerabilities.
+        role:
+          type: string
+          description: >
+            Enumerated role of the user, aligned with the official Authorization
+            Matrix. Permissible values reflect hierarchical access privileges.
+          enum:
+            - ADMIN
+            - PROJECT_MANAGER
+            - TEAM_LEAD
+            - DEVELOPER
+            - VIEWER
+        permissions:
+          type: array
+          description: >
+            Array of custom permissions for precise access control,
+            augmenting the user's base role.
+          items:
+            type: string
+        isActive:
+          type: boolean
+          default: false
+          description: >
+            Indicates whether the user's account is active. False means
+            the account may be locked or deactivated.
+        lastLogin:
+          type: string
+          format: date-time
+          description: >
+            Timestamp denoting the user's most recent successful login, in ISO 8601.
+        mfaEnabled:
+          type: boolean
+          default: true
+          description: >
+            Flag indicating if Multi-Factor Authentication is enforced for this user.
+        securityQuestions:
+          type: array
+          description: >
+            An array of objects each defining a security question and its
+            protected answer hash, used for additional identity verification.
+          items:
+            type: object
+            properties:
+              question:
+                type: string
+                description: >
+                  The security question text. Must be kept generic and free of PII.
+              answerHash:
+                type: string
+                description: >
+                  Hashed response to the security question. Actual answers
+                  must never be stored in plain text.
+            required:
+              - question
+              - answerHash
+        lastPasswordChange:
+          type: string
+          format: date-time
+          description: >
+            ISO 8601 timestamp for the most recent successful password update.
+        failedLoginAttempts:
+          type: integer
+          description: >
+            The running count of consecutive failed login attempts. Used for
+            enforcing lockouts upon reaching threshold.
+        accountLockoutUntil:
+          type: string
+          format: date-time
+          description: >
+            Timestamp until which the account is locked. Lockout may be cleared
+            once this time has passed or an admin manual unlock occurs.
+        metadata:
+          $ref: "./common.yaml#/components/schemas/MetadataSchema"
+        auditTrail:
+          type: array
+          description: >
+            Records of significant security-related events (e.g., password changes,
+            login attempts) for audit and traceability.
+          items:
+            type: object
+            properties:
+              event:
+                type: string
+                description: >
+                  Describes the type of security event, e.g., "LOGIN_SUCCESS".
+              timestamp:
+                type: string
+                format: date-time
+                description: >
+                  ISO 8601 timestamp specifying when the event occurred.
+              ipAddress:
+                type: string
+                format: ipv4
+                description: >
+                  IP address from which the event originated (IPv4 format).
+              userAgent:
+                type: string
+                description: >
+                  Raw user-agent string capturing device details. Used for
+                  anomaly detection.
+            required:
+              - event
+              - timestamp
+      required:
+        - id
+        - email
+        - role
+        - isActive
+        - mfaEnabled
+
+    ############################################################################
+    # AuthRequestSchema
+    # --------------------------------------------------------------------------
+    # Enhanced authentication request schema with MFA support, device ID,
+    # client metadata, and rate limiting correlation. Implements steps from
+    # generateAuthRequestSchema in the JSON specification.
+    ############################################################################
+    AuthRequestSchema:
+      type: object
+      title: "AuthRequestSchema"
+      x-schema-version: "1.0.0"
+      x-schema-deprecated: false
+      description: >
+        Defines the input payload required to authenticate a user, including
+        Multi-Factor Authentication and device tracking for security analysis.
+      properties:
+        email:
+          type: string
+          format: email
+          description: >
+            User's email address for authentication. Strict validation is applied
+            to ensure RFC 5322 compliance.
+        password:
+          type: string
+          description: >
+            Plaintext password for login. Must adhere to password complexity rules
+            enforced by the platform (length, special characters, etc.). Not stored
+            beyond request scope.
+        mfaCode:
+          type: string
+          description: >
+            One-time Multi-Factor Authentication code, if required. If MFA is not
+            enabled, this field may be omitted.
+        deviceId:
+          type: string
+          description: >
+            Unique identifier or fingerprint representing the user's device, used
+            to highlight potential anomalies in login patterns.
+        clientMetadata:
+          type: object
+          description: >
+            Arbitrary data detailing the client environment (operating system, app
+            version, geolocation hints). Aids in security checks and analytics.
+          additionalProperties: true
+        requestId:
+          type: string
+          description: >
+            Unique request ID for correlation of requests in load balancing or
+            rate limiting systems.
+      required:
+        - email
+        - password
+
+    ############################################################################
+    # AuthResponseSchema
+    # --------------------------------------------------------------------------
+    # Enhanced authentication response schema that includes advanced security
+    # features such as security headers, session tracking, MFA requirements,
+    # password expiry warnings, and rate limit information. Implements steps
+    # from generateAuthResponseSchema in the JSON specification.
+    ############################################################################
+    AuthResponseSchema:
+      type: object
+      title: "AuthResponseSchema"
+      x-schema-version: "1.0.0"
+      x-schema-deprecated: false
+      description: >
+        Defines the structured response provided upon successful or partially
+        successful authentication, including tokens, user details, and
+        security-specific objects.
+      properties:
+        accessToken:
+          type: string
+          description: >
+            A short-lived JWT granting access to TaskStream AI resources.
+            Encodes role/permission claims and expires within a short timeframe.
+        refreshToken:
+          type: string
+          description: >
+            Token permitting the client to obtain a new access token without
+            fully reauthenticating upon expiration of the current token.
+        user:
+          $ref: "#/components/schemas/UserSchema"
+          description: >
+            The authenticated user's details, with sensitive fields (like password)
+            omitted. Must reflect real-time updates in user status or permissions.
+        sessionId:
+          type: string
+          description: >
+            Identifier correlating the session across the platform for concurrency
+            enforcement, security logs, or ephemeral session store references.
+        securityHeaders:
+          type: object
+          description: >
+            A structured set of recommended or enforced security headers that the
+            client or intermediate proxy should apply to safeguard communication.
+          properties:
+            Strict-Transport-Security:
+              type: string
+              description: >
+                Header enforcing secure (HTTPS) connections to the server.
+            Content-Security-Policy:
+              type: string
+              description: >
+                Restricts sources of content to prevent XSS or data injection attacks.
+            X-Frame-Options:
+              type: string
+              description: >
+                Protects against clickjacking by controlling if the browser can
+                display the page in a frame.
+        mfaRequired:
+          type: boolean
+          description: >
+            Indicates whether additional MFA validation is still needed. Typically
+            false if the login flow completed all MFA steps.
+        passwordExpiryWarning:
+          type: object
+          description: >
+            Object containing information about impending password expiry, guiding
+            the user to update credentials in a timely manner.
+          properties:
+            daysUntilExpiration:
+              type: integer
+              description: >
+                Number of days remaining before the user must update the password.
+            msg:
+              type: string
+              description: >
+                Advisory or localized message prompting the user to change
+                the password soon.
+        rateLimit:
+          type: object
+          description: >
+            Rate limiting details for the current authentication route, helping
+            clients understand usage constraints and thresholds.
+          properties:
+            limit:
+              type: integer
+              description: >
+                The total number of allowed requests within the current window.
+            remaining:
+              type: integer
+              description: >
+                The number of requests remaining before hitting the rate limit.
+            reset:
+              type: integer
+              description: >
+                UNIX epoch time at which the rate limit resets (in seconds).
+        auditEvent:
+          type: string
+          description: >
+            A unique identifier referencing this authentication event in
+            centralized audit trails or logs for subsequent security analysis.
+      required:
+        - accessToken
+        - refreshToken
+        - user
+        - mfaRequired
