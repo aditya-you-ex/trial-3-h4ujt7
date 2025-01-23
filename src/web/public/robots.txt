@@ -1,0 +1,31 @@
+# TaskStream AI Robots.txt
+# Version: 1.0
+# Last updated: 2024
+# Purpose: This file configures search engine crawler directives for TaskStream AI.
+# It ensures enterprise-grade security by blocking indexing of:
+#   - Sensitive API endpoints
+#   - Authentication routes
+#   - System settings and administrative interfaces
+#   - Integration paths
+# While still allowing public-facing pages to be discoverable,
+# these directives address System Security, Security Requirements,
+# and Enterprise Integration constraints defined in the technical specification.
+
+User-agent: *
+
+# Disallow sensitive routes protected by our enterprise security policies:
+Disallow: /api/
+Disallow: /auth/
+Disallow: /settings/
+Disallow: /integration/
+Disallow: /admin/
+
+# Allow public routes critical to platform discovery and user engagement:
+Allow: /
+Allow: /about
+Allow: /contact
+Allow: /features
+Allow: /pricing
+
+# Sitemap location for enhanced crawl efficiency:
+Sitemap: https://taskstream.ai/sitemap.xml
