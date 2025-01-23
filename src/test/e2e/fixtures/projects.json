@@ -1,0 +1,193 @@
+[
+  {
+    "id": "PROJ-001",
+    "name": "Project Aqua",
+    "description": "Planning stage project focusing on user onboarding flows.",
+    "status": "PLANNING",
+    "startDate": "2023-09-01T00:00:00.000Z",
+    "endDate": "2023-12-01T00:00:00.000Z",
+    "teamId": "TEAM-ALPHA",
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Draft Requirements",
+        "status": "OPEN",
+        "assigneeId": "USER-001"
+      },
+      {
+        "id": "TASK-002",
+        "title": "Initial Wireframes",
+        "status": "OPEN",
+        "assigneeId": "USER-002"
+      }
+    ],
+    "analytics": {
+      "resourceId": "TEAM-ALPHA-RES",
+      "utilization": 0,
+      "allocatedHours": 100,
+      "actualHours": 0,
+      "efficiency": 0
+    },
+    "metadata": {
+      "createdAt": "2023-09-01T08:00:00.000Z",
+      "updatedAt": "2023-09-10T10:00:00.000Z",
+      "createdBy": "project-creator",
+      "updatedBy": "project-updater",
+      "version": 1
+    }
+  },
+  {
+    "id": "PROJ-002",
+    "name": "Project Blaze",
+    "description": "Active project with distributed microservice architecture.",
+    "status": "ACTIVE",
+    "startDate": "2023-08-15T00:00:00.000Z",
+    "endDate": "2024-01-31T00:00:00.000Z",
+    "teamId": "TEAM-BRAVO",
+    "tasks": [
+      {
+        "id": "TASK-003",
+        "title": "Implement Authentication",
+        "status": "IN_PROGRESS",
+        "assigneeId": "USER-003"
+      },
+      {
+        "id": "TASK-004",
+        "title": "Set up CI/CD Pipeline",
+        "status": "OPEN",
+        "assigneeId": "USER-004"
+      },
+      {
+        "id": "TASK-011",
+        "title": "Database Schema Iteration",
+        "status": "IN_PROGRESS",
+        "assigneeId": "USER-009"
+      }
+    ],
+    "analytics": {
+      "resourceId": "TEAM-BRAVO-RES",
+      "utilization": 65,
+      "allocatedHours": 200,
+      "actualHours": 130,
+      "efficiency": 75
+    },
+    "metadata": {
+      "createdAt": "2023-08-15T09:30:00.000Z",
+      "updatedAt": "2023-09-20T11:45:00.000Z",
+      "createdBy": "admin",
+      "updatedBy": "devops",
+      "version": 3
+    }
+  },
+  {
+    "id": "PROJ-003",
+    "name": "Project Crimson",
+    "description": "On-hold due to resource constraints in the data analytics pipeline.",
+    "status": "ON_HOLD",
+    "startDate": "2023-05-01T00:00:00.000Z",
+    "endDate": "2023-10-01T00:00:00.000Z",
+    "teamId": "TEAM-CHARLIE",
+    "tasks": [
+      {
+        "id": "TASK-005",
+        "title": "Integrate NLP Service",
+        "status": "IN_PROGRESS",
+        "assigneeId": "USER-005"
+      },
+      {
+        "id": "TASK-006",
+        "title": "Resource Allocation Review",
+        "status": "BLOCKED",
+        "assigneeId": "USER-003"
+      }
+    ],
+    "analytics": {
+      "resourceId": "TEAM-CHARLIE-RES",
+      "utilization": 50,
+      "allocatedHours": 80,
+      "actualHours": 40,
+      "efficiency": 50
+    },
+    "metadata": {
+      "createdAt": "2023-05-01T12:00:00.000Z",
+      "updatedAt": "2023-08-01T12:00:00.000Z",
+      "createdBy": "project-manager",
+      "updatedBy": "executive",
+      "version": 2
+    }
+  },
+  {
+    "id": "PROJ-004",
+    "name": "Project Delta",
+    "description": "Recently completed project focusing on AWS cost optimization strategies.",
+    "status": "COMPLETED",
+    "startDate": "2023-01-10T00:00:00.000Z",
+    "endDate": "2023-06-15T00:00:00.000Z",
+    "teamId": "TEAM-DELTA",
+    "tasks": [
+      {
+        "id": "TASK-007",
+        "title": "AWS Billing Analysis",
+        "status": "DONE",
+        "assigneeId": "USER-006"
+      },
+      {
+        "id": "TASK-008",
+        "title": "Optimize Instance Utilization",
+        "status": "DONE",
+        "assigneeId": "USER-004"
+      }
+    ],
+    "analytics": {
+      "resourceId": "TEAM-DELTA-RES",
+      "utilization": 90,
+      "allocatedHours": 150,
+      "actualHours": 135,
+      "efficiency": 90
+    },
+    "metadata": {
+      "createdAt": "2023-01-10T07:45:00.000Z",
+      "updatedAt": "2023-06-20T09:00:00.000Z",
+      "createdBy": "owner",
+      "updatedBy": "finops",
+      "version": 5
+    }
+  },
+  {
+    "id": "PROJ-005",
+    "name": "Project Echo",
+    "description": "Archived project maintained for historical analytics and compliance checks.",
+    "status": "ARCHIVED",
+    "startDate": "2022-09-01T00:00:00.000Z",
+    "endDate": "2023-03-01T00:00:00.000Z",
+    "teamId": "TEAM-ECHO",
+    "tasks": [
+      {
+        "id": "TASK-009",
+        "title": "Legacy Documentation",
+        "status": "DONE",
+        "assigneeId": "USER-007"
+      },
+      {
+        "id": "TASK-010",
+        "title": "System Decommission",
+        "status": "DONE",
+        "assigneeId": "USER-008"
+      }
+    ],
+    "analytics": {
+      "resourceId": "TEAM-ECHO-RES",
+      "utilization": 0,
+      "allocatedHours": 200,
+      "actualHours": 200,
+      "efficiency": 100
+    },
+    "metadata": {
+      "createdAt": "2022-09-01T08:00:00.000Z",
+      "updatedAt": "2023-08-01T08:00:00.000Z",
+      "createdBy": "archive-admin",
+      "updatedBy": "archive-admin",
+      "version": 9
+    }
+  }
+]
