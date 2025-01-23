@@ -1,0 +1,69 @@
+/**
+ * Prettier Configuration File
+ * 
+ * This file sets the code formatting rules to maintain a consistent style
+ * across the backend TypeScript services. It integrates seamlessly with ESLint
+ * and other developer tooling as described in the technical specifications.
+ */
+
+/**
+ * External Library Reference:
+ * Using "prettier" ^2.8.0 for enterprise-grade code formatting (IE2).
+ */
+
+module.exports.prettierConfig = {
+  /**
+   * printWidth (number):
+   * Defines the maximum line length for better readability,
+   * aligning with our code quality standards (LD1).
+   */
+  printWidth: 88,
+
+  /**
+   * tabWidth (number):
+   * Specifies the number of spaces per indentation level (LD1).
+   */
+  tabWidth: 2,
+
+  /**
+   * useTabs (boolean):
+   * If true, uses tabs for indentation; otherwise uses spaces (LD1).
+   */
+  useTabs: false,
+
+  /**
+   * semi (boolean):
+   * If true, always adds a semicolon at the end of statements (LD1).
+   */
+  semi: true,
+
+  /**
+   * singleQuote (boolean):
+   * If true, uses single quotes for strings (LD1).
+   */
+  singleQuote: true,
+
+  /**
+   * trailingComma (string):
+   * Controls printing trailing commas where valid in ES5 (LD1).
+   */
+  trailingComma: 'es5',
+
+  /**
+   * bracketSpacing (boolean):
+   * If true, prints spaces between brackets in object literals (LD1).
+   */
+  bracketSpacing: true,
+
+  /**
+   * arrowParens (string):
+   * If set to 'avoid', omits parentheses when they are not needed (LD1).
+   */
+  arrowParens: 'avoid',
+
+  /**
+   * endOfLine (string):
+   * Ensures consistent line endings across different operating systems (LD1).
+   */
+  endOfLine: 'lf',
+};
