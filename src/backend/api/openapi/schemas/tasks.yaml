@@ -1,0 +1,414 @@
+openapi: "3.0.3"
+info:
+  title: "TaskStream AI Task Schemas"
+  version: "1.0.0"
+  description: >
+    Comprehensive OpenAPI schema definitions for task-related endpoints in the
+    TaskStream AI platform. This file includes creation, update, and list-response
+    schemas, enriched with analytics and AI metadata. It references common schema
+    components (Metadata, Error, Pagination) from the shared common.yaml and draws
+    from the TaskInterfaces specified in task.interface.ts.
+
+################################################################################
+# External Library Reference (IE2 Rule):
+# Using openapi-types ^12.1.0
+################################################################################
+
+paths: {}
+
+################################################################################
+# Internal Code Generation Functions for Schema Creation
+# (LD1/LD2: Extremely extensive detail regarding generation steps)
+################################################################################
+x-functions:
+  generateTaskSchema:
+    description: "Generates enhanced OpenAPI schema for task entity with analytics support."
+    parameters: []
+    returns:
+      type: object
+      description: "OpenAPI schema object for tasks with analytics metadata."
+    steps:
+      - "Define schema type as object with version tracking."
+      - "Add required task properties from Task interface."
+      - "Add optional properties with validation rules."
+      - "Include metadata schema reference for auditing and concurrency."
+      - "Attach AI metadata for tasks auto-extracted from communications."
+      - "Incorporate analytics fields for resource utilization and efficiency."
+      - "Add field-level security definitions if relevant to your environment."
+      - "Include version-based validation rules for future proofing."
+
+  generateTaskCreateSchema:
+    description: "Generates OpenAPI schema for task creation with enhanced validation."
+    parameters: []
+    returns:
+      type: object
+      description: "OpenAPI schema object for task creation with validation rules."
+    steps:
+      - "Define schema type as object with versioning if desired."
+      - "Add required properties matching the TaskCreateInput interface."
+      - "Apply robust validation rules for each field (length, enum, format)."
+      - "Mark mandatory fields according to the platform's creation contract."
+      - "Optional analytics initialization fields if needed at creation."
+      - "Add rules for sanitizing or normalizing input data."
+      - "Incorporate any relevant security checks based on auth context."
+
+  generateTaskUpdateSchema:
+    description: "Generates OpenAPI schema for task updates with analytics tracking."
+    parameters: []
+    returns:
+      type: object
+      description: "OpenAPI schema object for task updates with partial field support."
+    steps:
+      - "Define object schema to allow partial updates in line with TaskUpdateInput."
+      - "Include optional analytics fields for tasks in progress."
+      - "Maintain consistent references to enumerations (status, priority, source)."
+      - "Integrate concurrency or version checks if necessary."
+      - "Add partial or optional property validation as tasks can be updated incrementally."
+      - "Preserve security validations for changes to critical fields like status or assignee."
+      - "Extend or refine analytics fields to capture updated resource usage."
+
+################################################################################
+# Exports (IE3 Rule): Exposing Task Schema Definitions
+# These exports align with the JSON specification members for each schema.
+################################################################################
+x-exports:
+  TaskSchema:
+    type: "object"
+    purpose: "Enhanced OpenAPI schema for task entity with analytics support."
+    version: "1.0"
+    analytics: {}
+    required:
+      - id
+      - projectId
+      - title
+      - description
+      - status
+      - priority
+      - assigneeId
+      - dueDate
+      - estimatedHours
+      - actualHours
+      - source
+      - aiMetadata
+      - analytics
+      - metadata
+      - dependencies
+      - tags
+      - completionPercentage
+    properties:
+      id:
+        type: string
+        description: "Unique ID for the task, typically a UUID or similar identifier."
+      projectId:
+        type: string
+        description: "ID of the project this task is associated with."
+      title:
+        type: string
+        description: "Short title summarizing the task objective."
+        minLength: 1
+        maxLength: 256
+      description:
+        type: string
+        description: "Detailed explanation of task requirements."
+      status:
+        type: string
+        description: "Workflow status for the task in the system."
+        enum:
+          - BACKLOG
+          - TODO
+          - IN_PROGRESS
+          - IN_REVIEW
+          - DONE
+      priority:
+        type: string
+        description: "Priority level for the task."
+        enum:
+          - HIGH
+          - MEDIUM
+          - LOW
+      assigneeId:
+        type: string
+        description: "Identifier of the user or resource assigned to this task."
+      dueDate:
+        type: string
+        format: date-time
+        description: "Deadline date/time for when the task is expected to be completed."
+      estimatedHours:
+        type: number
+        description: "Initial planned number of hours for this task."
+        minimum: 0
+      actualHours:
+        type: number
+        description: "Tracked actual hours worked so far."
+        minimum: 0
+      source:
+        type: string
+        description: "Indicates how this task was created or extracted."
+        enum:
+          - MANUAL
+          - EMAIL
+          - CHAT
+          - MEETING
+      aiMetadata:
+        type: object
+        description: "AI-generated data for tasks extracted automatically."
+        properties:
+          confidence:
+            type: number
+            description: "Confidence in the extracted data, on a scale of 0 to 1."
+            minimum: 0
+            maximum: 1
+          extractedFrom:
+            type: string
+            description: "Reference ID or location of the source text."
+          entities:
+            type: array
+            description: "Entities recognized in the source text (e.g., persons, dates)."
+            items:
+              type: string
+          keywords:
+            type: array
+            description: "Keywords derived from the source text for indexing/tagging."
+            items:
+              type: string
+          sentimentScore:
+            type: number
+            description: "AI sentiment analysis result (-1 to +1 range)."
+            minimum: -1
+            maximum: 1
+          urgencyIndicators:
+            type: array
+            description: "Signals or phrases indicating elevated urgency."
+            items:
+              type: string
+          categoryPredictions:
+            type: object
+            description: "Generated mappings of category labels to confidence values."
+            additionalProperties:
+              type: number
+      analytics:
+        type: object
+        description: "Analytics data capturing resource usage and efficiency metrics."
+        properties:
+          resourceId:
+            type: string
+            description: "ID for the resource used in analytics tracking."
+          utilization:
+            type: number
+            description: "Resource utilization (percentage 0-100)."
+            minimum: 0
+            maximum: 100
+          allocatedHours:
+            type: number
+            description: "Hours allocated for this resource in the given context."
+            minimum: 0
+          actualHours:
+            type: number
+            description: "Actual hours consumed by this resource for the task."
+            minimum: 0
+          efficiency:
+            type: number
+            description: "Comparison ratio between allocated and actual hours used."
+            minimum: 0
+      metadata:
+        $ref: "./common.yaml#/components/schemas/MetadataSchema"
+      dependencies:
+        type: array
+        description: "Tasks that need to be handled before this one can be completed."
+        items:
+          type: string
+      tags:
+        type: array
+        description: "Labels or categories assigned to enhance organization."
+        items:
+          type: string
+      completionPercentage:
+        type: number
+        description: "Indicates current progress of the task from 0 to 100."
+        minimum: 0
+        maximum: 100
+
+  TaskCreateSchema:
+    type: "object"
+    purpose: "OpenAPI schema for task creation with enhanced validation."
+    validation: {}
+    required:
+      - projectId
+      - title
+      - description
+      - priority
+      - assigneeId
+      - dueDate
+      - estimatedHours
+      - source
+    properties:
+      projectId:
+        type: string
+        description: "Project identifier under which the task will be created."
+      title:
+        type: string
+        description: "Domain-specific title for the new task."
+        minLength: 1
+        maxLength: 256
+      description:
+        type: string
+        description: "Any contextual details describing the new task's intent."
+      priority:
+        type: string
+        description: "Initial priority when creating the task."
+        enum:
+          - HIGH
+          - MEDIUM
+          - LOW
+      assigneeId:
+        type: string
+        description: "User or resource ID assigned ownership upon creation."
+      dueDate:
+        type: string
+        format: date-time
+        description: "Deadline or expected completion date for the new task."
+      estimatedHours:
+        type: number
+        description: "Estimated workload in hours for planning allocations."
+        minimum: 0
+      source:
+        type: string
+        description: "Origin of this task creation (manual entry, email, etc.)."
+        enum:
+          - MANUAL
+          - EMAIL
+          - CHAT
+          - MEETING
+      dependencies:
+        type: array
+        description: "IDs of tasks that this new task depends upon."
+        items:
+          type: string
+      tags:
+        type: array
+        description: "Labels or categories useful for search and grouping."
+        items:
+          type: string
+
+  TaskUpdateSchema:
+    type: "object"
+    purpose: "OpenAPI schema for task updates with analytics tracking."
+    analytics: {}
+    properties:
+      title:
+        type: string
+        description: "Adjusted title if the task's name is changed."
+        minLength: 1
+        maxLength: 256
+      description:
+        type: string
+        description: "Newly expanded or revised content describing the task."
+      status:
+        type: string
+        description: "Transition of the task to a new workflow status."
+        enum:
+          - BACKLOG
+          - TODO
+          - IN_PROGRESS
+          - IN_REVIEW
+          - DONE
+      priority:
+        type: string
+        description: "Shift in task priority, e.g. from LOW to HIGH."
+        enum:
+          - HIGH
+          - MEDIUM
+          - LOW
+      assigneeId:
+        type: string
+        description: "Reassign task ownership to another user or resource."
+      dueDate:
+        type: string
+        format: date-time
+        description: "Rescheduled deadline if previous date is no longer valid."
+      estimatedHours:
+        type: number
+        description: "Refined or updated estimate based on real-time data."
+        minimum: 0
+      actualHours:
+        type: number
+        description: "Accumulated hours tracked while executing the task."
+        minimum: 0
+      completionPercentage:
+        type: number
+        description: "Indicates updated progress of the task from 0 to 100."
+        minimum: 0
+        maximum: 100
+      dependencies:
+        type: array
+        items:
+          type: string
+        description: "Updated prerequisites for completion."
+      tags:
+        type: array
+        items:
+          type: string
+        description: "Amended set of labels or categories applied to the task."
+
+  TaskListResponse:
+    type: "object"
+    purpose: "Enhanced OpenAPI schema for paginated task list response with analytics data."
+    analytics: {}
+    properties:
+      pagination:
+        $ref: "./common.yaml#/components/schemas/PaginationSchema"
+      items:
+        type: array
+        description: "Collection of tasks fitting the query parameters."
+        items:
+          $ref: "#/x-exports/TaskSchema"
+      totalTasks:
+        type: integer
+        description: "Number of matching tasks across all pages."
+      errors:
+        type: array
+        description: "List of notable errors encountered during listing."
+        items:
+          $ref: "./common.yaml#/components/schemas/ErrorSchema"
+
+################################################################################
+# Local Schema Definitions for Enumerations & Validation Placeholders
+################################################################################
+components:
+  schemas:
+    TaskPriorityEnum:
+      type: string
+      enum:
+        - HIGH
+        - MEDIUM
+        - LOW
+      description: "Enum capturing allowable priority levels for a task."
+
+    TaskStatusEnum:
+      type: string
+      enum:
+        - BACKLOG
+        - TODO
+        - IN_PROGRESS
+        - IN_REVIEW
+        - DONE
+      description: "Enum capturing allowable workflow statuses for a task."
+
+    TaskSourceEnum:
+      type: string
+      enum:
+        - MANUAL
+        - EMAIL
+        - CHAT
+        - MEETING
+      description: "Enum capturing possible source types for a task."
+
+    TaskValidation:
+      type: object
+      description: "Placeholder for advanced validation checks or constraints."
+      properties:
+        validations:
+          type: array
+          items:
+            type: string
+          description: "List of validation rules or constraints applied to tasks."
