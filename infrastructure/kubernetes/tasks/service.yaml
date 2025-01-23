@@ -1,0 +1,105 @@
+################################################################################
+# KUBERNETES SERVICE CONFIGURATION FOR TASKSTREAM AI - TASKS MICROSERVICE
+# ------------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This file defines the Kubernetes Service resource for the TaskStream AI
+#   "tasks" microservice (Task Manager). It exposes the pods managed by the
+#   tasks-deployment (see deployment.yaml) via a stable endpoint. This service
+#   satisfies multiple requirements as specified in the JSON:
+#     • System Architecture (Technical Specifications §2.1): Implements exposure
+#       for the tasks microservice within the container-based design.
+#     • Infrastructure Requirements (Technical Specifications §2.5.1): Creates
+#       necessary networking and discovery configuration for the tasks pods.
+#     • High Availability (Technical Specifications §8.1): Enables the load
+#       balancing of traffic across multiple pod replicas.
+#     • Monitoring Integration (Technical Specifications §2.4.1): Exposes
+#       Prometheus scraping annotations for metrics gathering on port 3002.
+#
+# INTERNAL REFERENCES (IE1):
+#   - tasks-deployment (deployment.yaml):
+#       • metadata.labels (app=taskstream, component=tasks, etc.) ensures
+#         consistent labeling between Deployment and Service selectors.
+#       • spec.template.spec.containers[0].ports defines containerPort=3002,
+#         which is mapped here as the Service port for HTTP traffic.
+#
+# GLOBALS:
+#   - SERVICE_NAME    => "taskstream-tasks"
+#   - SERVICE_PORT    => 3002
+#   - NAMESPACE       => "taskstream"
+#
+# EXPORTS:
+#   - tasks-service (Service) => Exposes .metadata & .spec for potential
+#     referencing or further extension, ensuring load balancing mechanics
+#     and high availability for the tasks microservice.
+#
+# NOTE ON DESIGN:
+#   - Using ClusterIP as type to allow internal cluster access. If needed,
+#     an Ingress or LoadBalancer can be used for external routes.
+#   - SessionAffinity is set to "None" by default for typical stateless tasks,
+#     while each pod's ephemeral data is not user session-based.
+#   - The Prometheus annotations satisfy the centralized metrics scraping
+#     approach demanded by system monitoring requirements.
+################################################################################
+
+apiVersion: v1
+kind: Service
+
+###############################################################################
+# METADATA SECTION
+# -----------------------------------------------------------------------------
+# name:      The logical name of this Service in the "taskstream" namespace.
+# namespace: Must match the tasks namespace described in the JSON specification
+#            and the external references for resource-quotas, limit-ranges, etc.
+# labels:    Align with the tasks-deployment labels so that the Service
+#            correctly targets pods (app=taskstream, component=tasks).
+# annotations:
+#   - prometheus.io/scrape: Marks that this Service provides metrics for
+#     Prometheus to scrape.
+#   - prometheus.io/port:   Identifies which port to scrape (3002).
+#   - prometheus.io/path:   The endpoint path to retrieve metrics (/metrics).
+###############################################################################
+metadata:
+  name: taskstream-tasks
+  namespace: taskstream
+  labels:
+    app: taskstream
+    component: tasks
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3002"
+    prometheus.io/path: "/metrics"
+
+###############################################################################
+# SPEC SECTION
+# -----------------------------------------------------------------------------
+# type: The Service type is set to "ClusterIP" to provide a stable virtual IP
+#       for internal communication inside the cluster. This is typical for
+#       backend services that do not need direct external access.
+#
+# ports:
+#   - port: The Service port (3002), matching the tasks-deployment's container
+#     port. We reference spec.template.spec.containers[0].ports => containerPort.
+#   - targetPort: Also 3002, ensuring traffic is routed to the correct container
+#     port.
+#   - protocol: "TCP" for typical HTTP traffic.
+#   - name: "http" to label this port accordingly for clarity.
+#
+# selector: Must match the deployment's Pod labels (app=taskstream, component=tasks)
+#           so that traffic is correctly directed to the tasks pods.
+#
+# sessionAffinity: "None" means no session stickiness is enforced. Each request
+#                  can go to any available pod, aligning with typical stateless
+#                  Node.js or container-based workloads.
+###############################################################################
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3002
+      targetPort: 3002
+      protocol: TCP
+      name: http
+  selector:
+    app: taskstream
+    component: tasks
+  sessionAffinity: None
