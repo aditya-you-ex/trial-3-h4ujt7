@@ -1,0 +1,249 @@
+# =============================================================================
+# Kubernetes Pod Security Policies (PSP)
+# =============================================================================
+# FILE DESCRIPTION:
+# This file defines PodSecurityPolicy resources and associated RBAC permissions
+# to enforce strong security contexts for pods in the TaskStream AI platform.
+# It implements two PSPs:
+#   1) restricted: Enhanced security for general workloads (no privilege).
+#   2) privileged: Allows controlled privilege elevation for specialized system
+#      workloads (e.g., low-level monitoring or debugging).
+#
+# COMPLIANCE AND REFERENCES:
+#  - Aligns with the cross-cutting security concerns outlined in the TaskStream AI
+#    technical specification (policy/v1beta1).
+#  - Contributes to SOC 2 Type II and ISO 27001 compliance by providing defense-in-depth
+#    at the container runtime level.
+#  - Incorporates best practices for restricting container capabilities,
+#    filesystem access, and user permissions.
+#  - Ready for migration to Pod Security Admission (Kubernetes 1.25+).
+#
+# IMPORTS & GLOBALS:
+#  - External import: "kubernetes" (v1.27+).
+#  - Internal import: "network-policies.yaml" (NAMESPACE_SELECTORS).
+#  - Global: apiVersion: policy/v1beta1
+#  - Global service namespaces: { analytics, nlp, monitoring, system }
+#
+# =============================================================================
+# 1) POD SECURITY POLICY: RESTRICTED
+# =============================================================================
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: restricted
+  labels:
+    app.kubernetes.io/name: "taskstream-psp"
+    app.kubernetes.io/component: "security"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+spec:
+  # Disallow privileged mode completely.
+  privileged: false
+
+  # Disallow privilege escalation (set at container level).
+  allowPrivilegeEscalation: false
+
+  # Force dropping all capabilities.
+  requiredDropCapabilities:
+    - ALL
+
+  # Restrict volume types to safe, non-host-dependent options.
+  volumes:
+    - configMap
+    - emptyDir
+    - projected
+    - secret
+    - downwardAPI
+    - persistentVolumeClaim
+
+  # Disallow sharing host namespaces.
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+
+  # Must run as a non-root user. Additionally, enforce numeric UID ranges.
+  runAsUser:
+    rule: MustRunAsNonRoot
+    ranges:
+      - min: 1000
+        max: 65535
+
+  # SELinux rule is permissive (RunAsAny) for portability across environments.
+  seLinux:
+    rule: RunAsAny
+
+  # Enforce supplemental groups in non-root range.
+  supplementalGroups:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+
+  # Enforce fsGroup in non-root range.
+  fsGroup:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+
+  # Enforce a read-only root filesystem for security hardening.
+  readOnlyRootFilesystem: true
+
+  # Use the default seccomp profile to reduce kernel attack surface.
+  seccompProfile:
+    type: RuntimeDefault
+
+---
+
+# =============================================================================
+# 2) POD SECURITY POLICY: PRIVILEGED
+# =============================================================================
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: privileged
+  labels:
+    app.kubernetes.io/name: "taskstream-psp"
+    app.kubernetes.io/component: "security"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+spec:
+  # Allow privileged mode for specialized workloads.
+  privileged: true
+
+  # Allow containers to elevate privileges if necessary.
+  allowPrivilegeEscalation: true
+
+  # Capabilities that can be added within this PSP.
+  allowedCapabilities:
+    - NET_ADMIN
+    - SYS_ADMIN
+
+  # Allow usage of all volume types.
+  volumes:
+    - "*"
+
+  # Allow usage of host networking and process namespaces.
+  hostNetwork: true
+  hostIPC: true
+  hostPID: true
+
+  # RunAsUser is fully permissive. Some system components need arbitrary UIDs.
+  runAsUser:
+    rule: RunAsAny
+
+  # SELinux is fully permissive for system-level pods.
+  seLinux:
+    rule: RunAsAny
+
+  # Supplemental groups and fsGroup are fully permissive.
+  supplementalGroups:
+    rule: RunAsAny
+  fsGroup:
+    rule: RunAsAny
+
+  # readOnlyRootFilesystem is disabled to allow privileged tools to write logs.
+  readOnlyRootFilesystem: false
+
+  # Unrestricted seccomp profile for extreme debugging/monitoring usage.
+  seccompProfile:
+    type: Unconfined
+
+---
+
+# =============================================================================
+# 3) CLUSTER ROLE: PSP-RESTRICTED-ROLE
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: psp-restricted-role
+  labels:
+    app.kubernetes.io/name: "taskstream-psp"
+    app.kubernetes.io/component: "security"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+rules:
+  - apiGroups:
+      - policy
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+    resourceNames:
+      - restricted
+
+---
+
+# =============================================================================
+# 4) CLUSTER ROLE: PSP-PRIVILEGED-ROLE
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: psp-privileged-role
+  labels:
+    app.kubernetes.io/name: "taskstream-psp"
+    app.kubernetes.io/component: "security"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+rules:
+  - apiGroups:
+      - policy
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+    resourceNames:
+      - privileged
+
+---
+
+# =============================================================================
+# 5) CLUSTER ROLE BINDING: PSP-RESTRICTED-BINDING
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: psp-restricted-binding
+  labels:
+    app.kubernetes.io/name: "taskstream-psp"
+    app.kubernetes.io/component: "security"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+subjects:
+  # Assign restricted PSP usage to analytics and nlp service accounts.
+  - kind: Group
+    name: system:serviceaccounts:analytics
+    apiGroup: rbac.authorization.k8s.io
+  - kind: Group
+    name: system:serviceaccounts:nlp
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: psp-restricted-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+# =============================================================================
+# 6) CLUSTER ROLE BINDING: PSP-PRIVILEGED-BINDING
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: psp-privileged-binding
+  labels:
+    app.kubernetes.io/name: "taskstream-psp"
+    app.kubernetes.io/component: "security"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+subjects:
+  # Assign privileged PSP usage to monitoring service accounts.
+  - kind: Group
+    name: system:serviceaccounts:monitoring
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: psp-privileged-role
+  apiGroup: rbac.authorization.k8s.io
