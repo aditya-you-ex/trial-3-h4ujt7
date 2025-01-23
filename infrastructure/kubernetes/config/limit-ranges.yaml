@@ -1,0 +1,136 @@
+################################################################################
+# KUBERNETES LIMITRANGE RESOURCES
+# ------------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This file defines LimitRange objects (apiVersion: v1) for the TaskStream AI
+#   platform, ensuring consistent resource allocation and preventing resource
+#   abuse. These objects directly address:
+#     1) Resource Management      (Technical Specifications §2.2.1)
+#     2) Infrastructure Requirements (Technical Specifications §2.5.1)
+#     3) Scaling Parameters       (Technical Specifications §2.5.2)
+#
+# EXTERNAL IMPORT REFERENCE:
+#   - kubernetes (v1.27+)  # Required for LimitRange resource API
+#
+# INTERNAL IMPORT REFERENCE:
+#   - namespaces.yaml (analytics-namespace, nlp-namespace, tasks-namespace)
+#     Ensures each LimitRange is placed in the correct namespace.
+#
+# GLOBAL LIMITS (from JSON specification: DEFAULT_CONTAINER_LIMITS):
+#   default:
+#     cpu: "500m"
+#     memory: "512Mi"
+#   defaultRequest:
+#     cpu: "100m"
+#     memory: "128Mi"
+#   max:
+#     cpu: "4"
+#     memory: "8Gi"
+#   min:
+#     cpu: "50m"
+#     memory: "64Mi"
+#
+# NOTE:
+#   Each LimitRange below is tailored to the unique workloads within its
+#   respective namespace, aligned with CPU/memory constraints described
+#   in TaskStream AI's scaling and resource utilization sections.
+################################################################################
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: analytics-limits
+  namespace: analytics  # Referencing analytics-namespace from namespaces.yaml
+  labels:
+    app.kubernetes.io/name: "limit-range"
+    app.kubernetes.io/component: "resource-management"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+  annotations:
+    taskstream.ai/description: "LimitRange for the analytics namespace"
+    taskstream.ai/requirements-addressed: "ResourceManagement, InfrastructureRequirements, ScalingParameters"
+spec:
+  limits:
+    - type: Container
+      # Default resource allocations for analytics containers
+      # ensuring moderate resource usage by default while allowing
+      # up to 4 CPUs and 8Gi memory for heavier data processing tasks.
+      default:
+        cpu: "1"
+        memory: "1Gi"
+      defaultRequest:
+        cpu: "200m"
+        memory: "256Mi"
+      max:
+        cpu: "4"
+        memory: "8Gi"
+      min:
+        cpu: "100m"
+        memory: "128Mi"
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: nlp-limits
+  namespace: nlp  # Referencing nlp-namespace from namespaces.yaml
+  labels:
+    app.kubernetes.io/name: "limit-range"
+    app.kubernetes.io/component: "resource-management"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+  annotations:
+    taskstream.ai/description: "LimitRange for the nlp namespace"
+    taskstream.ai/requirements-addressed: "ResourceManagement, InfrastructureRequirements, ScalingParameters"
+spec:
+  limits:
+    - type: Container
+      # Default resource settings for advanced NLP workloads, allowing
+      # higher CPU and memory ceilings (up to 8 CPUs / 16Gi memory)
+      # to accommodate GPU-enabled or ML-intensive processes.
+      default:
+        cpu: "2"
+        memory: "2Gi"
+      defaultRequest:
+        cpu: "500m"
+        memory: "512Mi"
+      max:
+        cpu: "8"
+        memory: "16Gi"
+      min:
+        cpu: "200m"
+        memory: "256Mi"
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: tasks-limits
+  namespace: tasks  # Referencing tasks-namespace from namespaces.yaml
+  labels:
+    app.kubernetes.io/name: "limit-range"
+    app.kubernetes.io/component: "resource-management"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+  annotations:
+    taskstream.ai/description: "LimitRange for the tasks namespace"
+    taskstream.ai/requirements-addressed: "ResourceManagement, InfrastructureRequirements, ScalingParameters"
+spec:
+  limits:
+    - type: Container
+      # Default resource constraints for typical task management services,
+      # ensuring minimal overhead per container while capping at 2 CPUs
+      # and 4Gi memory for safer concurrency settings.
+      default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      max:
+        cpu: "2"
+        memory: "4Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
