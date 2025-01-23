@@ -1,0 +1,127 @@
+/* ============================================================================
+   Import Core Design Tokens
+   - Internal Import: CSS Custom Properties (variables.css)
+   - Purpose: Defines typography, colors, spacing, breakpoints, shadows, etc.
+   ============================================================================
+*/
+@import './variables.css';
+
+/* ============================================================================
+   External Library: @mui/material (version 5.14+)
+   - Provides enterprise-grade components that can be themed via these overrides
+   ============================================================================
+*/
+
+/* ============================================================================
+   Global Styles
+   - Applies essential base definitions for TaskStream AI, ensuring consistency
+   - Implements the design system typography, color palette, and layout settings
+   ============================================================================
+*/
+body {
+  /* Base theme styles */
+  background-color: var(--color-gray-50);
+  color: var(--color-gray-900);
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+  contain: content;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body.dark-mode {
+  /* Dark mode styles */
+  background-color: var(--color-gray-900);
+  color: var(--color-gray-50);
+  /* Native OS-level dark color scheme awareness */
+  color-scheme: dark;
+}
+
+/* ============================================================================
+   Reduced Motion Preference
+   - Ensures that users who have requested less motion experience minimal effects
+   ============================================================================
+*/
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ============================================================================
+   Named Classes for Theming and Responsive Utilities
+   Includes:
+     1) theme-light
+     2) theme-dark
+     3) theme-transitions
+     4) theme-responsive
+   ============================================================================
+*/
+
+/* ----------------------------------------------------------------------------
+   1) Light Theme Class
+   - Applies design tokens for backgrounds, text, borders, and surface layers
+   ----------------------------------------------------------------------------
+*/
+.theme-light {
+  /* Light theme specific styles and overrides */
+  --theme-background: var(--color-gray-50);
+  --theme-text: var(--color-gray-900);
+  --theme-border: var(--color-gray-200);
+  --theme-shadow: var(--shadow-md);
+  --theme-focus-ring: 0 0 0 2px var(--color-blue-200);
+  --theme-surface: var(--color-white);
+  --theme-surface-hover: var(--color-gray-100);
+}
+
+/* ----------------------------------------------------------------------------
+   2) Dark Theme Class
+   - Applies design tokens for background, text, and surfaces suitable for dark UI
+   ----------------------------------------------------------------------------
+*/
+.theme-dark {
+  /* Dark theme specific styles and overrides */
+  --theme-background: var(--color-gray-900);
+  --theme-text: var(--color-gray-50);
+  --theme-border: var(--color-gray-700);
+  --theme-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --theme-focus-ring: 0 0 0 2px var(--color-blue-700);
+  --theme-surface: var(--color-gray-800);
+  --theme-surface-hover: var(--color-gray-700);
+}
+
+/* ----------------------------------------------------------------------------
+   3) Theme Transitions Class
+   - Provides smooth animations for color, background, and box-shadow changes
+   ----------------------------------------------------------------------------
+*/
+.theme-transitions {
+  /* Theme transition animations with performance optimizations */
+  transition: background-color var(--transition-default),
+              color var(--transition-default),
+              border-color var(--transition-default),
+              box-shadow var(--transition-default);
+  will-change: background-color, color, border-color, box-shadow;
+  contain: layout style paint;
+}
+
+/* ----------------------------------------------------------------------------
+   4) Theme Responsive Class
+   - Enhanced responsive utilities and container queries for fluid layouts
+   ----------------------------------------------------------------------------
+*/
+.theme-responsive {
+  /* Responsive design adjustments */
+  --container-margin: clamp(1rem, 5vw, 2rem);
+  --content-width: min(100% - (var(--container-margin) * 2), var(--max-width));
+  --fluid-type-min: var(--font-size-base); /* By design spec, might map to --font-size-md */
+  --fluid-type-max: var(--font-size-lg);
+  font-size: clamp(
+    var(--fluid-type-min),
+    1vw + 1rem,
+    var(--fluid-type-max)
+  );
+}
