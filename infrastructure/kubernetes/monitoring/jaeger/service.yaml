@@ -1,0 +1,72 @@
+###############################################################################
+# SERVICE: Jaeger for Distributed Tracing
+# ----------------------------------------------------------------------------- 
+# This Kubernetes Service (apiVersion: v1, kind: Service) exposes the Jaeger 
+# all-in-one Deployment (see deployment.yaml) inside the monitoring namespace 
+# for centralized distributed tracing. It aligns with:
+#   - System Monitoring (Tech Specs §2.4.1) to capture and observe microservice 
+#     interactions.
+#   - Service Mesh requirements (Glossary §8.2) by providing explicit TCP ports.
+#   - System Reliability (Tech Specs §1.2) for maintaining 99.9% uptime via 
+#     secured, stable endpoints.
+#
+# EXTERNAL IMPORTS:
+#   - kubernetes (v1.27+): For native Kubernetes Service definitions.
+#
+# INTERNAL IMPORTS:
+#   - jaeger-deployment (deployment.yaml):
+#       * References metadata.labels for "app=jaeger", "component=monitoring", 
+#         and "version=1.45".
+#       * References spec.template.spec.containers[0].ports (16686, 14250, 9411).
+#   - monitoring-namespace (namespaces.yaml):
+#       * References metadata for "monitoring" namespace scoping.
+#
+# EXPORTS (json.spec 'jaeger-service'):
+#   - http-endpoint : port 16686 (name: http)
+#   - grpc-endpoint : port 14250 (name: grpc)
+#   - zipkin-endpoint : port 9411 (name: zipkin)
+#
+# PURPOSE:
+#   - Exposes secure Jaeger tracing endpoints for distributed microservice
+#     monitoring, enabling real-time analysis of transaction flows, latency,
+#     and root-cause troubleshooting.
+###############################################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+  namespace: monitoring
+  labels:
+    app: jaeger
+    component: monitoring
+    version: "1.45"
+    part-of: observability-stack
+    # Additional label for potential extended usage or alignment with
+    # multi-module service discovery in the cluster:
+    service.taskstream.ai/exposed: "true"
+  annotations:
+    # Metadata annotation to confirm compliance with security and reliability goals
+    security.taskstream.ai/monitoring: "enabled"
+    reliability.taskstream.ai/uptime-goal: "99.9%"
+spec:
+  # ClusterIP type ensures internal exposure for service mesh or cluster traffic.
+  type: ClusterIP
+
+  # The selector must match the deployment's pod labels (app=jaeger).
+  selector:
+    app: jaeger
+
+  # Ports required for Jaeger's HTTP UI, gRPC collector, and Zipkin compatibility.
+  ports:
+    - name: http
+      port: 16686
+      targetPort: 16686
+      protocol: TCP
+    - name: grpc
+      port: 14250
+      targetPort: 14250
+      protocol: TCP
+    - name: zipkin
+      port: 9411
+      targetPort: 9411
+      protocol: TCP
