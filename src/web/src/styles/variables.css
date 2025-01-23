@@ -1,0 +1,131 @@
+/* 
+===============================================================================
+ TaskStream AI - CSS Custom Properties (Variables)
+ 
+ Defines core design tokens, ensuring consistency across all UI components,
+ including typography, colors, spacing, breakpoints, borders, shadows, z-index,
+ transitions, and grid settings.
+ 
+ This file implements critical design system specifications, supporting both
+ internal and external component libraries for a cohesive and scalable UI.
+===============================================================================
+*/
+
+:root {
+  /* ==========================================================================
+     TYPOGRAPHY VARIABLES
+     - Represents primary, secondary, and monospace fonts used across the app
+     - Specifies consistent font weights and sizes aligned with design guidelines
+  ========================================================================== */
+  --font-family-primary: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-family-secondary: 'SF Pro', system-ui, -apple-system, sans-serif;
+  --font-family-mono: 'JetBrains Mono', monospace;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+
+  /* ==========================================================================
+     COLOR VARIABLES
+     - Primary, secondary, success, error, warning, white, black, and various
+       grayscale values for a unified color palette
+  ========================================================================== */
+  --color-primary: #2563EB;
+  --color-primary-dark: #1E40AF;
+  --color-primary-light: #60A5FA;
+  --color-secondary: #64748B;
+  --color-secondary-dark: #475569;
+  --color-secondary-light: #94A3B8;
+  --color-success: #10B981;
+  --color-error: #EF4444;
+  --color-warning: #F59E0B;
+  --color-white: #FFFFFF;
+  --color-black: #000000;
+  --color-gray-50: #F8FAFC;
+  --color-gray-100: #F1F5F9;
+  --color-gray-200: #E2E8F0;
+  --color-gray-300: #CBD5E1;
+  --color-gray-400: #94A3B8;
+  --color-gray-500: #64748B;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+  --color-gray-800: #1E293B;
+  --color-gray-900: #0F172A;
+
+  /* ==========================================================================
+     SPACING VARIABLES
+     - Defines base spacing increments for margin, padding, and layout structure
+  ========================================================================== */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+
+  /* ==========================================================================
+     RESPONSIVE BREAKPOINT VARIABLES
+     - Standardized breakpoints for mobile, tablet, desktop, and wide screens
+  ========================================================================== */
+  --breakpoint-mobile: 320px;
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1024px;
+  --breakpoint-wide: 1440px;
+
+  /* ==========================================================================
+     BORDER RADIUS VARIABLES
+     - Used for consistent rounding of UI elements such as buttons, cards, etc.
+  ========================================================================== */
+  --border-radius-sm: 4px;
+  --border-radius-md: 6px;
+  --border-radius-lg: 8px;
+  --border-radius-xl: 12px;
+  --border-radius-full: 9999px;
+
+  /* ==========================================================================
+     SHADOW VARIABLES
+     - Predefined elevation styles for UI surfaces (cards, modals, dropdowns)
+  ========================================================================== */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+
+  /* ==========================================================================
+     Z-INDEX VARIABLES
+     - Hierarchy levels for layered UI elements (dropdowns, modals, popovers)
+  ========================================================================== */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+
+  /* ==========================================================================
+     TRANSITION VARIABLES
+     - Speeds and easing functions for hover, focus, and interactive transitions
+  ========================================================================== */
+  --transition-fast: 150ms ease-in-out;
+  --transition-default: 250ms ease-in-out;
+  --transition-slow: 350ms ease-in-out;
+
+  /* ==========================================================================
+     GRID VARIABLES
+     - Grid gap sizes and container constraints for consistent layout structure
+  ========================================================================== */
+  --grid-gap-sm: var(--spacing-sm);
+  --grid-gap-md: var(--spacing-md);
+  --grid-gap-lg: var(--spacing-lg);
+  --container-padding: var(--spacing-md);
+  --container-max-width: 1280px;
+}
