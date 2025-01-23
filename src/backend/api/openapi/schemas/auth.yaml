@@ -1,0 +1,394 @@
+openapi: "3.0.3"
+
+################################################################################
+# TaskStream AI - Authentication and Authorization Schemas
+#
+# This file defines enhanced OpenAPI schema components intended for authentication
+# and authorization flows within the TaskStream AI platform, implementing:
+# 1) OAuth2-based and multi-factor (MFA) security features.
+# 2) Role-based access control with granular permissions.
+# 3) Comprehensive metadata for audit logs, device identification, and advanced
+#    token management.
+#
+# Imports and References:
+# - This file relies on local schemas from common.yaml for imported structures:
+#   (1) MetadataSchema: Provides standardized creation/updating and version info.
+#   (2) ErrorSchema:    Provides a robust error reporting framework.
+#
+# - External library note (per instructions IE2):
+#   # This file conceptually aligns with "openapi-types@^12.1.0"
+#   # for advanced schema definitions and specification compliance.
+#
+# Global Tag and Server Routing for Authentication (per instructions):
+# - The "Authentication" tag is used to group all auth-related schemas.
+# - The "/auth" base URL may be utilized by relevant endpoints in separate files.
+################################################################################
+
+info:
+  title: "TaskStream AI - Authentication Schemas"
+  version: "1.0.0"
+  description: >
+    Comprehensive authentication and authorization schema definitions
+    for the TaskStream AI platform, supporting multi-factor login flows,
+    secure token issuance, and rigorous access control. This file focuses
+    on shared data structures rather than endpoint path definitions.
+
+tags:
+  - name: "Authentication"
+    description: "OpenAPI schemas pertaining to user authentication and token management."
+
+servers:
+  - url: "/auth"
+    description: "Base path for authentication endpoints within TaskStream AI."
+
+paths: {}
+
+components:
+  schemas:
+
+    ############################################################################
+    # UserSchema (Exported)
+    # --------------------------------------------------------------------------
+    # This schema describes the structure of a user object within the TaskStream
+    # AI platform, incorporating enhanced security features. It includes fields
+    # for essential user attributes (names, email, role, permissions) plus
+    # 2FA/MFA configuration, activity tracking, and a reference to shared
+    # MetadataSchema for auditing and concurrency.
+    #
+    # Based on function generateUserSchema from the specification:
+    # 1) Enforces core user identification (id, email).
+    # 2) Implements role-based access control with advanced enumerations.
+    # 3) Tracks security-related fields: MFA, login attempts, device fingerprints.
+    # 4) References the common MetadataSchema for creation/updation versions.
+    # 5) Provides optional fields to store last login time and extended data.
+    ############################################################################
+    UserSchema:
+      type: object
+      title: "UserSchema"
+      description: >
+        Represents a TaskStream AI user with detailed security, role management,
+        and audit-friendly metadata. Includes advanced validation rules and
+        references to a shared metadata schema for uniform tracking.
+      required:
+        - id
+        - email
+        - role
+        - permissions
+        - isActive
+        - metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "Unique user identifier in UUID v4 format."
+        email:
+          type: string
+          format: email
+          description: >
+            User's primary email address. Must conform strictly to RFC 5322
+            or similar stringent format validation.
+        firstName:
+          type: string
+          description: >
+            User's given name. XSS protection enforced by disallowing angle
+            brackets or dangerous characters in typical usage.
+          pattern: "^[^<>]*$"
+        lastName:
+          type: string
+          description: >
+            User's surname or family name. XSS protection enforced by a pattern
+            blocking risky characters.
+          pattern: "^[^<>]*$"
+        role:
+          type: string
+          description: "Enumerated role for the user, used in RBAC checks."
+          enum:
+            - ADMIN
+            - PROJECT_MANAGER
+            - TEAM_LEAD
+            - DEVELOPER
+            - VIEWER
+        permissions:
+          type: array
+          description: >
+            Array of granular permissions or scopes assigned to the user,
+            used to authorize specific actions within the platform.
+          items:
+            type: string
+        isActive:
+          type: boolean
+          description: >
+            Indicates whether the user's account is currently active and not
+            suspended, locked, or deactivated.
+        lastLogin:
+          type: string
+          format: date-time
+          description: >
+            Timestamp (ISO 8601) of the user's most recent login event. May be
+            omitted if the user has never logged in.
+        securityMetadata:
+          type: object
+          description: >
+            Captures additional security-focused details for advanced auditing
+            (e.g., IP addresses, last suspicious activity). Implementation may
+            vary or be extended in downstream microservices.
+          properties:
+            info:
+              type: string
+              description: "Generic property to illustrate possible extended data."
+            riskLevel:
+              type: string
+              enum: [LOW, MEDIUM, HIGH]
+              description: "Illustrative example indicating a security risk category."
+        mfaEnabled:
+          type: boolean
+          description: >
+            Flag indicating whether multi-factor authentication is enabled on
+            this user's account.
+        mfaType:
+          type: string
+          description: >
+            Specifies the type of multi-factor authentication configured.
+          enum:
+            - NONE
+            - TOTP
+            - SMS
+            - EMAIL
+        lastPasswordChange:
+          type: string
+          format: date-time
+          description: >
+            Timestamp (ISO 8601) recording when the user last changed their
+            password. Supports security policy enforcement.
+        failedLoginAttempts:
+          type: integer
+          description: >
+            Counter tracking the number of consecutive failed login attempts
+            for potential account lockout or step-up authentication.
+        deviceFingerprints:
+          type: array
+          description: >
+            Collection of device identifiers or fingerprints associated with
+            the user, possibly updated at each login.
+          items:
+            type: string
+        metadata:
+          $ref: "./common.yaml#/components/schemas/MetadataSchema"
+          description: >
+            Reference to the standardized metadata schema for creation and
+            modification timestamps, version, and user tracking.
+
+    ############################################################################
+    # AuthRequestSchema (Exported)
+    # --------------------------------------------------------------------------
+    # Defines the structure of an authentication request object. Extends typical
+    # username/password fields with optional multi-factor tokens, device
+    # fingerprints, geolocation, rate limiting, and client metadata for highly
+    # secure and context-aware auth flows.
+    #
+    # Based on function generateAuthRequestSchema from the specification:
+    # 1) Enforces strong email format checks and password complexity patterns.
+    # 2) Includes an optional 2FA token for multi-step auth processes.
+    # 3) Tracks device fingerprint, geolocation, and rate-limit details.
+    # 4) Expects an optional securityHeaders or requestSource to differentiate
+    #    between web, mobile, or API calls.
+    ############################################################################
+    AuthRequestSchema:
+      type: object
+      title: "AuthRequestSchema"
+      description: >
+        Defines the payload required for user authentication. Includes device,
+        geo-locational data, MFA tokens, and client metadata to ensure robust
+        security measures like 2FA and advanced risk-based controls.
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: >
+            Required field representing the user's login or primary email.
+            Must pass strict validation to mitigate vulnerabilities.
+        password:
+          type: string
+          description: >
+            User's raw password input. Enforce strong complexity rules
+            via pattern constraints or server-side validations.
+          minLength: 8
+          maxLength: 128
+          # Example complexity pattern: at least 1 uppercase, 1 lowercase, 1 digit
+          pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+$"
+        deviceFingerprint:
+          type: object
+          description: >
+            Captures details of the device used for login. This can store
+            OS version, browser version, IP address, or unique hardware info.
+          properties:
+            os:
+              type: string
+              description: "Operating system name or version (e.g., Windows 11, macOS)."
+            browser:
+              type: string
+              description: "Browser identifier and version (e.g., Chrome 109, Firefox 99)."
+            ip:
+              type: string
+              description: >
+                IP address of the requesting device (IPv4 or IPv6 format),
+                used for geo or security checks.
+        geoLocation:
+          type: object
+          description: >
+            Provides optional geographic details for location-based security \n
+            policies or unusual login detection.
+          properties:
+            latitude:
+              type: number
+              format: float
+              description: "Latitude coordinate of the login attempt."
+            longitude:
+              type: number
+              format: float
+              description: "Longitude coordinate of the login attempt."
+            region:
+              type: string
+              description: "Geographic region or city name where the login originated."
+        mfaToken:
+          type: string
+          description: >
+            Token provided by the user for a second authentication factor,
+            e.g., TOTP code, SMS code, or email OTP. Required only if
+            multi-factor authentication is enforced by policy.
+        clientMetadata:
+          type: object
+          description: >
+            Arbitrary key-value pairs containing additional info about the
+            client environment, enabling analytics or specialized logging.
+          additionalProperties: true
+        rateLimit:
+          type: object
+          description: >
+            Optional structure indicating rate-limiting constraints or counters
+            for the request to mitigate brute-force attacks.
+          properties:
+            maxRequests:
+              type: integer
+              description: "Maximum allowed requests in the time window."
+            windowInSeconds:
+              type: integer
+              description: "Duration (in seconds) of the rate-limiting window."
+        requestSource:
+          type: string
+          description: >
+            Specifies the origin of the request, enabling distinctions between
+            web UI, mobile client, or direct API calls.
+          enum: [WEB, MOBILE, API]
+        securityHeaders:
+          type: object
+          description: >
+            Additional security-related headers or tokens, such as X-XSRF-Token,
+            to further safeguard request authenticity.
+          properties:
+            xXsrfToken:
+              type: string
+              description: "Example CSRF protection token."
+
+    ############################################################################
+    # AuthResponseSchema (Exported)
+    # --------------------------------------------------------------------------
+    # Defines the structure of an authentication response object. Includes tokens,
+    # user details, session context, potential security warnings, and a reference
+    # to an audit log capturing relevant security or error events.
+    #
+    # Based on function generateAuthResponseSchema from the specification:
+    # 1) Issues JWT-based access and refresh tokens with expiration data.
+    # 2) Embeds the newly authenticated user object for immediate client-state usage.
+    # 3) Offers a permissionContext object to outline current capabilities.
+    # 4) Presents an optional auditLog referencing an imported ErrorSchema array to
+    #    store or retrieve security or error events relevant to the auth process.
+    ############################################################################
+    AuthResponseSchema:
+      type: object
+      title: "AuthResponseSchema"
+      description: >
+        Encapsulates the result of a successful or partially successful
+        authentication attempt. Contains JWT tokens, the user object, and
+        optional fields for session auditing, token metadata, or aggregated
+        warnings (e.g., suspicious location).
+      required:
+        - accessToken
+        - refreshToken
+        - user
+      properties:
+        accessToken:
+          type: string
+          description: >
+            Short-lived JWT (JSON Web Token) granting immediate access to
+            protected resources, with an embedded expiration claim.
+        refreshToken:
+          type: string
+          description: >
+            Longer-lived token permitting re-issuance of access tokens
+            without reauthenticating. Subject to rotation or revocation
+            policies.
+        user:
+          $ref: "#/components/schemas/UserSchema"
+          description: >
+            The authenticated user's profile and security information,
+            simplifying subsequent client logic by returning the object.
+        sessionContext:
+          type: object
+          description: >
+            Arbitrary object capturing runtime session details (e.g.,
+            ephemeral session ID, server node, or login flow data).
+          additionalProperties: true
+        securityWarnings:
+          type: array
+          description: >
+            Array of textual warnings about the authentication environment,
+            e.g., unrecognized device or suspicious IP address.
+          items:
+            type: string
+        tokenMetadata:
+          type: object
+          description: >
+            Additional metadata regarding the access or refresh token, such as
+            issuance time, expiration time, or last rotation event.
+          properties:
+            issuedAt:
+              type: string
+              format: date-time
+              description: "Timestamp indicating when the token was issued."
+            expiresAt:
+              type: string
+              format: date-time
+              description: "Timestamp indicating when the token is set to expire."
+            rotationCount:
+              type: integer
+              description: >
+                Counter reflecting how many times a refresh token has been
+                rotated in the current session.
+        auditLog:
+          type: array
+          description: >
+            An optional log capturing security or error events relevant to the
+            authentication process. Leverages the ErrorSchema import for
+            consistency with platform-wide error reporting.
+          items:
+            $ref: "./common.yaml#/components/schemas/ErrorSchema"
+        permissionContext:
+          type: object
+          description: >
+            Dynamically provides a summary of the authenticated user's
+            entitlements, including specialized or ephemeral privileges.
+          properties:
+            roles:
+              type: array
+              description: "List of roles currently active for this session."
+              items:
+                type: string
+            isAdmin:
+              type: boolean
+              description: >
+                Quick flag indicating if the user is effectively operating
+                with administrative permissions under the current session.
