@@ -1,0 +1,226 @@
+################################################################################
+# HELM VALUES FILE FOR TASKSTREAM AI - TASKS SERVICE
+# ------------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This Helm values file orchestrates the comprehensive configuration of the
+#   TaskStream AI "tasks" service. It addresses container orchestration, 
+#   infrastructure requirements, high availability, and security compliance
+#   by defining parameters for:
+#
+#     • Container images (repository, tag, pull policies, credentials).
+#     • Deployment attributes (replica count, annotations, labels, probes,
+#       resource management, security context, update strategy, affinity).
+#     • Service definition (type, port, and monitoring-ready annotations).
+#     • Autoscaling rules (CPU/memory utilization, custom metrics, advanced
+#       scaleUp/scaleDown behavior).
+#     • Global security context (for rootless operation and restricted
+#       capabilities).
+#     • Monitoring integration (service monitor and Grafana dashboard support).
+#
+# This file is referenced by Helm templates to generate Kubernetes manifests for
+# the tasks microservice. All essential fields follow the JSON specification
+# mandating enterprise-grade, production-ready detail, with explicit alignment
+# to the TaskStream AI technical requirements.
+################################################################################
+
+################################################################################
+# IMAGE CONFIGURATION
+# ------------------------------------------------------------------------------
+# Describes the container image used by the tasks service, along with:
+#   - repository: Docker registry path.
+#   - tag:        Specific version tag to deploy.
+#   - pullPolicy: Kubernetes policy to always pull images to ensure the latest
+#                 version is used if mutable tags are applied.
+#   - imagePullSecrets: References the secret for authentication if the registry
+#                       is private.
+################################################################################
+image:
+  repository: "taskstream/tasks"
+  tag: ""
+  pullPolicy: "Always"
+  imagePullSecrets:
+    - "registry-credentials"
+
+################################################################################
+# NAME OVERRIDES
+# ------------------------------------------------------------------------------
+# Allows the user to override the chart's name or define a full name override
+# for the tasks deployment and associated resources. By default, the chart name
+# is used unless these values are explicitly set.
+################################################################################
+nameOverride: ""
+fullnameOverride: "taskstream-tasks"
+
+################################################################################
+# DEPLOYMENT CONFIGURATION
+# ------------------------------------------------------------------------------
+# Defines how the tasks workloads will be deployed:
+#   1) replicaCount: Number of Pods at normal operation.
+#   2) annotations:  Additional metadata for compliance and monitoring.
+#   3) labels:       Standard Kubernetes labels for organization and tracking.
+#   4) containerPort: Primary port where the tasks service listens.
+#   5) resources:    CPU/memory requests/limits aligned with tasks-limits.
+#   6) Probes:       Liveness, readiness, and startup checks for production usage.
+#   7) securityContext: Enforces non-root user, read-only filesystem, no privilege
+#                      escalation, minimal capabilities.
+#   8) updateStrategy: RollingUpdate strategy with surge/unavailable definitions.
+#   9) affinity:      Pod anti-affinity for scheduling across distinct hosts.
+################################################################################
+deployment:
+  replicaCount: 5
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3002"
+    prometheus.io/path: "/metrics"
+    security.compliance/soc2: "enabled"
+    backup.velero.io/backup-volumes: "data"
+  labels:
+    app: "taskstream"
+    component: "tasks"
+    tier: "backend"
+    environment: "${ENV}"
+    region: "${REGION}"
+  containerPort: 3002
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+  livenessProbe:
+    httpGet:
+      path: "/health"
+      port: 3002
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    httpGet:
+      path: "/ready"
+      port: 3002
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 2
+    successThreshold: 1
+  startupProbe:
+    httpGet:
+      path: "/startup"
+      port: 3002
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 30
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - "ALL"
+  updateStrategy:
+    type: "RollingUpdate"
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            topologyKey: "kubernetes.io/hostname"
+
+################################################################################
+# SERVICE CONFIGURATION
+# ------------------------------------------------------------------------------
+# Exposes the tasks microservice internally within the cluster:
+#   - type:     ClusterIP for internal cluster communication.
+#   - port:     Default port mapping (3002).
+#   - annotations: For Prometheus scraping and AWS load balancer type if
+#                  external exposure is later adapted to an NLB.
+################################################################################
+service:
+  type: "ClusterIP"
+  port: 3002
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3002"
+    prometheus.io/path: "/metrics"
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+
+################################################################################
+# AUTOSCALING CONFIGURATION (HPA)
+# ------------------------------------------------------------------------------
+# Controls horizontal pod autoscaling for the tasks deployment:
+#   - enabled: Whether or not to create an HPA resource.
+#   - minReplicas / maxReplicas: Bounds for scaling.
+#   - targetCPUUtilizationPercentage: CPU threshold that triggers scaling.
+#   - targetMemoryUtilizationPercentage: Memory threshold for scaling.
+#   - customMetrics: Additional custom metrics, e.g., requests per second.
+#   - behavior: Defines scaleUp/scaleDown policies to avoid thrashing.
+################################################################################
+autoscaling:
+  enabled: true
+  minReplicas: 5
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  customMetrics:
+    - type: "Pods"
+      pods:
+        metric:
+          name: "http_requests_per_second"
+        target:
+          type: "AverageValue"
+          averageValue: 1000
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: "Pods"
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: "Pods"
+          value: 1
+          periodSeconds: 120
+
+################################################################################
+# GLOBAL SECURITY CONTEXT
+# ------------------------------------------------------------------------------
+# Provides a reference security context for the tasks service. This can be used
+# globally if the Helm chart or pods need to inherit these security settings
+# from a single place. The fields match those used by the deployment
+# configuration, ensuring rootless operation and minimal capabilities.
+################################################################################
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - "ALL"
+
+################################################################################
+# MONITORING INTEGRATIONS
+# ------------------------------------------------------------------------------
+# Additional configurations to integrate with Prometheus operator and Grafana:
+#   - serviceMonitor: Creates a ServiceMonitor to scrape metrics for this service.
+#   - grafanaDashboards: Automates import or discovery of Grafana dashboards
+#     targeting metrics from the tasks service.
+################################################################################
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: "30s"
+    scrapeTimeout: "10s"
+    namespace: "monitoring"
+  grafanaDashboards:
+    enabled: true
+    namespace: "monitoring"
