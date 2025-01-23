@@ -1,0 +1,116 @@
+{
+  "users": [
+    {
+      "id": "test-admin-id",
+      "email": "admin@taskstream.test",
+      "firstName": "Admin",
+      "lastName": "User",
+      "role": "ADMIN",
+      "permissions": ["*"],
+      "isActive": true,
+      "lastLogin": "2024-01-01T00:00:00Z",
+      "mfaEnabled": true,
+      "sessionTimeout": 3600
+    },
+    {
+      "id": "test-pm-id",
+      "email": "pm@taskstream.test",
+      "firstName": "Project",
+      "lastName": "Manager",
+      "role": "PROJECT_MANAGER",
+      "permissions": [
+        "project.manage",
+        "project.create",
+        "project.delete",
+        "analytics.view",
+        "analytics.export",
+        "team.view",
+        "task.manage"
+      ],
+      "isActive": true,
+      "lastLogin": "2024-01-01T00:00:00Z",
+      "mfaEnabled": true,
+      "sessionTimeout": 3600
+    },
+    {
+      "id": "test-lead-id",
+      "email": "lead@taskstream.test",
+      "firstName": "Team",
+      "lastName": "Lead",
+      "role": "TEAM_LEAD",
+      "permissions": [
+        "team.manage",
+        "team.view",
+        "task.manage",
+        "task.create",
+        "task.delete",
+        "analytics.team"
+      ],
+      "isActive": true,
+      "lastLogin": "2024-01-01T00:00:00Z",
+      "mfaEnabled": false,
+      "sessionTimeout": 1800
+    },
+    {
+      "id": "test-dev-id",
+      "email": "dev@taskstream.test",
+      "firstName": "Dev",
+      "lastName": "User",
+      "role": "DEVELOPER",
+      "permissions": [
+        "task.manage",
+        "analytics.view"
+      ],
+      "isActive": true,
+      "lastLogin": "2024-01-01T00:00:00Z",
+      "mfaEnabled": false,
+      "sessionTimeout": 1800
+    },
+    {
+      "id": "test-viewer-id",
+      "email": "viewer@taskstream.test",
+      "firstName": "View",
+      "lastName": "User",
+      "role": "VIEWER",
+      "permissions": [
+        "analytics.view",
+        "task.view"
+      ],
+      "isActive": true,
+      "lastLogin": "2024-01-01T00:00:00Z",
+      "mfaEnabled": false,
+      "sessionTimeout": 900
+    },
+    {
+      "id": "test-inactive-id",
+      "email": "inactive@taskstream.test",
+      "firstName": "InActive",
+      "lastName": "User",
+      "role": "DEVELOPER",
+      "permissions": [
+        "task.manage"
+      ],
+      "isActive": false,
+      "lastLogin": "2024-01-01T00:00:00Z",
+      "mfaEnabled": false,
+      "sessionTimeout": 1800
+    },
+    {
+      "id": "test-mfa-id",
+      "email": "mfa@taskstream.test",
+      "firstName": "MFA",
+      "lastName": "Test",
+      "role": "PROJECT_MANAGER",
+      "permissions": [
+        "project.manage",
+        "task.manage",
+        "analytics.view",
+        "team.view"
+      ],
+      "isActive": true,
+      "lastLogin": "2024-01-02T00:00:00Z",
+      "mfaEnabled": true,
+      "sessionTimeout": 3600
+    }
+  ]
+}
