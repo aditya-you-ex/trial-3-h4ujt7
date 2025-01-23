@@ -1,0 +1,179 @@
+apiVersion: apps/v1
+kind: Deployment
+
+# ---------------------------------------------------------------------------------
+# This Deployment configuration manages the Prometheus server for TaskStream AI,
+# addressing system monitoring, reliability (99.9% uptime), and infrastructure
+# observability requirements:
+#  - System Monitoring: Provides robust metric collection, custom rules, and alerts.
+#  - System Reliability: Ensures health checks, adequate resource reservations, and
+#    flexible storage retention (15 days by default).
+#  - Infrastructure Monitoring: Includes references to recording/alerting rules
+#    from the "prometheus-config" ConfigMap and a PVC for persistent TSDB storage.
+#
+# Internal Imports (ConfigMap & Service):
+#   1) prometheus-config (configmap.yaml)
+#      - Contains "prometheus.yml", "recording.rules", "alerting.rules" for scraping
+#        configuration, metric aggregations, and alert definitions.
+#   2) prometheus-service (service.yaml)
+#      - Exposes port "prometheus-metrics" named "prometheus" at :9090 for metric
+#        collection. This Deployment references that same named port within containers.
+#
+# External Import:
+#   - Prometheus official image: prom/prometheus:v2.45.0
+#     Chosen for latest stable features, security patches, and performance improvements.
+#
+# Exports:
+#   - The "prometheus-deployment" as a named resource, with the container "prometheus".
+# ---------------------------------------------------------------------------------
+metadata:
+  # -----------------------------------------------------------------------------
+  # "name" provides an identifiable resource name. The "namespace" is set to
+  # "monitoring" as specified in the JSON specification "globals".
+  # -----------------------------------------------------------------------------
+  name: prometheus-deployment
+  namespace: monitoring
+  labels:
+    # Ensures consistent labeling used by other system components:
+    app: prometheus
+    component: monitoring
+
+spec:
+  # -----------------------------------------------------------------------------
+  # "replicas" matches the specification requirement for a minimal, single replica
+  # environment. In a production scenario aiming for 99.9% uptime, a higher replica
+  # count might be used along with load balancing and anti-affinity policies.
+  # -----------------------------------------------------------------------------
+  replicas: 1
+
+  # -----------------------------------------------------------------------------
+  # "selector" ensures that this Deployment manages pods matching these labels.
+  # Any pods labeled app=prometheus,component=monitoring belong to this Deployment.
+  # -----------------------------------------------------------------------------
+  selector:
+    matchLabels:
+      app: prometheus
+      component: monitoring
+
+  template:
+    metadata:
+      # ---------------------------------------------------------------------------
+      # Template labels must match the selector above, so newly created pods
+      # receive these labels automatically.
+      # ---------------------------------------------------------------------------
+      labels:
+        app: prometheus
+        component: monitoring
+
+      # ---------------------------------------------------------------------------
+      # Annotations that designate this pod should be scraped by Prometheus. The
+      # "prometheus.io/port" annotation points to the container port to scrape.
+      # ---------------------------------------------------------------------------
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+
+    spec:
+      # ---------------------------------------------------------------------------
+      # "securityContext" enforces that pods run as a non-root user with a specific
+      # UID/GID (65534 is commonly used for 'nobody'). This helps mitigate risk
+      # and satisfy enterprise security standards (SOC 2 Type II compliance).
+      # ---------------------------------------------------------------------------
+      securityContext:
+        fsGroup: 65534
+        runAsUser: 65534
+        runAsNonRoot: true
+
+      # ---------------------------------------------------------------------------
+      # "containers" block defining the Prometheus server container. We use:
+      #   - The official Prometheus image at version v2.45.0.
+      #   - Resource requests/limits to handle typical cluster usage.
+      #   - Readiness and liveness probes to maintain high reliability (99.9%).
+      #   - Volume mounts for config and data storage.
+      # ---------------------------------------------------------------------------
+      containers:
+        - name: prometheus
+          # -----------------------------------------------------------------------
+          # Referencing the official Prometheus image from Docker Hub. The version
+          # is pinned to v2.45.0 for consistent and secure deployments.
+          # -----------------------------------------------------------------------
+          image: "prom/prometheus:v2.45.0"
+
+          # -----------------------------------------------------------------------
+          # "args" define how Prometheus starts up. This includes references to the
+          # config file path, data storage location, TSDB retention, and the
+          # lifecycle endpoint used for reloads.
+          # -----------------------------------------------------------------------
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=15d"
+            - "--web.enable-lifecycle"
+
+          # -----------------------------------------------------------------------
+          # "ports" enables Prometheus to listen on TCP port 9090, which is labeled
+          # "prometheus" so the "prometheus-service" can reference it by name.
+          # -----------------------------------------------------------------------
+          ports:
+            - containerPort: 9090
+              name: prometheus
+              protocol: TCP
+
+          # -----------------------------------------------------------------------
+          # Resource requests and limits ensure adequate CPU and memory are
+          # allocated to handle typical workload spikes while preventing resource
+          # contention with other applications in the cluster.
+          # -----------------------------------------------------------------------
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+            limits:
+              cpu: "1000m"
+              memory: "4Gi"
+
+          # -----------------------------------------------------------------------
+          # "volumeMounts" link the volumes declared below to specific directories.
+          #  - prometheus-config   => /etc/prometheus     (prometheus.yml & rules)
+          #  - prometheus-storage => /prometheus         (TSDB data persisted)
+          # -----------------------------------------------------------------------
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+            - name: prometheus-storage
+              mountPath: /prometheus
+
+          # -----------------------------------------------------------------------
+          # Readiness probe ensures Prometheus is fully operational before
+          # receiving traffic. Liveness probe restarts the container if the
+          # /-/healthy endpoint fails. Fine-tuned intervals help meet 99.9% uptime.
+          # -----------------------------------------------------------------------
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 60
+            periodSeconds: 30
+
+      # ---------------------------------------------------------------------------
+      # Kubernetes volumes needed by the Prometheus container:
+      #   1) prometheus-config: Populated from the "prometheus-config" ConfigMap,
+      #      containing prometheus.yml, recording.rules, and alerting.rules.
+      #   2) prometheus-storage: A PersistentVolumeClaim named "prometheus-pvc"
+      #      to store TSDB data required for long-term metrics retention.
+      # ---------------------------------------------------------------------------
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: prometheus-config
+
+        - name: prometheus-storage
+          persistentVolumeClaim:
+            claimName: prometheus-pvc
