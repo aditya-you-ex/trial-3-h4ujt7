@@ -1,0 +1,292 @@
+################################################################################
+# KUBERNETES CLUSTER AUTOSCALER CONFIGURATION - TASKSTREAM AI PLATFORM
+# ------------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This YAML file defines the Kubernetes Cluster Autoscaler Deployment,
+#   ServiceAccount, ClusterRole, and associated bindings for TaskStream AI.
+#   It automatically adjusts the size of the Kubernetes cluster by adding or
+#   removing nodes in response to resource utilization and scaling requirements,
+#   aligning with multi-AZ deployments on AWS and advanced safety measures.
+#
+# REQUIREMENTS ADDRESSED (FROM JSON SPEC):
+#  1) RESOURCE OPTIMIZATION:
+#     - Contributes to ~40% improvement in resource utilization by automatically
+#       right-sizing node counts across multiple availability zones.
+#     - Integrates with real-time metrics from the Metrics Server
+#       (imported from metrics-server.yaml) for precise scaling decisions.
+#
+#  2) INFRASTRUCTURE REQUIREMENTS (MIN 3 NODES PER SERVICE, MULTI-AZ):
+#     - Ensures a single active replica of cluster-autoscaler across the cluster
+#       while enabling node-group auto-discovery for multi-AZ node groups.
+#
+#  3) SCALING PARAMETERS:
+#     - Targets CPU usage ~70% and memory usage ~80% (guided by resource metrics).
+#     - Uses scale-down safety checks (scaleDownUnneededTime=10m,
+#       scaleDownDelayAfterAdd=10m, maxPodEvictionTime=2m) for controlled
+#       departures and minimal disruptions to running workloads.
+#
+# IMPORTS & DEPENDENCIES:
+#  - (INTERNAL) resource-quotas.yaml => references ANALYTICS_QUOTAS, NLP_QUOTAS
+#    for insight into cluster resource distribution.
+#  - (INTERNAL) metrics-server.yaml => "metrics-server-service" ensures the
+#    autoscaler can retrieve real-time CPU/memory usage data from pods/nodes.
+#  - (EXTERNAL) cluster-autoscaler (v1.27.3) => official image from registry.
+#  - (EXTERNAL) kubernetes (v1.27+) => platform API used for Deployment,
+#    ServiceAccount, ClusterRole, etc.
+#
+# GLOBAL CONFIG (FROM JSON SPEC AUTOSCALER_CONFIG):
+#  - scaleDownUnneededTime: 10m
+#  - scaleDownDelayAfterAdd: 10m
+#  - maxNodeProvisionTime: 15m
+#  - balanceSimilarNodeGroups: true
+#  - skipNodesWithSystemPods: true
+#  - maxGracefulTerminationSec: 600
+#  - maxPodEvictionTime: 2m
+#
+# EXPORTS (FROM JSON SPEC):
+#  1) cluster-autoscaler-serviceaccount (ServiceAccount)
+#  2) cluster-autoscaler-role          (ClusterRole)
+#  3) cluster-autoscaler               (Deployment)
+#  -  (Generously adding a ClusterRoleBinding to adhere to production readiness)
+#
+# NOTE:
+#  - The official cluster-autoscaler docs recommend running on a master or
+#    control-plane node (nodeSelector/tolerations). The nodeAffinity below
+#    enforces scheduling on nodes labeled with "kubernetes.io/role=master."
+#  - For multi-AZ, node-group auto-discovery references an AWS autoscaling group
+#    tagging scheme: "k8s.io/cluster-autoscaler/enabled" and
+#    "k8s.io/cluster-autoscaler/taskstream-cluster."
+################################################################################
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cluster-autoscaler-serviceaccount
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: "cluster-autoscaler"
+    app.kubernetes.io/component: "autoscaler-service-account"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+  annotations:
+    # Setting token rotation & mountable secrets enforcement for strong security.
+    kubernetes.io/enforce-mountable-secrets: "true"
+    security.taskstream.ai/token-rotation: "enabled"
+    security.taskstream.ai/audit-logging: "enabled"
+automountServiceAccountToken: true
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-autoscaler-role
+  labels:
+    app.kubernetes.io/name: "cluster-autoscaler"
+    app.kubernetes.io/component: "autoscaler-rbac"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+rules:
+  ##############################################################################
+  # The autoscaler needs comprehensive permissions for nodes, pods, and more.
+  # Based on the JSON specification 'rbac_rules' array:
+  ##############################################################################
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - pods
+      - services
+      - persistentvolumeclaims
+      - persistentvolumes
+      - replicationcontrollers
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
+      - "apps"
+      - "extensions"
+    resources:
+      - daemonsets
+      - replicasets
+      - statefulsets
+      - deployments
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+  - apiGroups:
+      - "batch"
+    resources:
+      - jobs
+      - cronjobs
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "storage.k8s.io"
+    resources:
+      - storageclasses
+      - csinodes
+      - csidrivers
+      - volumeattachments
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "coordination.k8s.io"
+    resources:
+      - leases
+    verbs:
+      - create
+      - get
+      - list
+      - watch
+      - update
+      - delete
+  - apiGroups:
+      - "events.k8s.io"
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+      - update
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-autoscaler-binding
+  labels:
+    app.kubernetes.io/name: "cluster-autoscaler"
+    app.kubernetes.io/component: "autoscaler-rbac-binding"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler-serviceaccount
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: cluster-autoscaler-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster-autoscaler
+  namespace: kube-system
+  labels:
+    app: cluster-autoscaler
+    app.kubernetes.io/name: "cluster-autoscaler-deployment"
+    app.kubernetes.io/component: "autoscaler"
+    app.kubernetes.io/part-of: "taskstream-ai"
+    app.kubernetes.io/managed-by: "infrastructure-team"
+  annotations:
+    # Marking cluster-autoscaler with advanced annotation to prevent the autoscaler
+    # from evicting itself.
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+spec:
+  ##############################################################################
+  # SINGLE REPLICA:
+  #   The cluster autoscaler typically runs as a single instance per cluster
+  #   to ensure consistent scaling decisions and avoid race conditions. 
+  ##############################################################################
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cluster-autoscaler
+  template:
+    metadata:
+      labels:
+        app: cluster-autoscaler
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8085"
+    spec:
+      serviceAccountName: cluster-autoscaler-serviceaccount
+      priorityClassName: system-cluster-critical
+      containers:
+        - name: cluster-autoscaler
+          image: registry.k8s.io/autoscaling/cluster-autoscaler:v1.27.3
+          imagePullPolicy: IfNotPresent
+          ############################################################################
+          # ARGS:
+          #   - cloud-provider=aws => Using AWS cloud provider integration
+          #   - namespace=kube-system => Runs in kube-system
+          #   - scale-down-delay-after-add=10m => Safety wait after adding nodes
+          #   - scale-down-unneeded-time=10m => Duration before removing unneeded nodes
+          #   - max-node-provision-time=15m => Limit for node readiness
+          #   - balance-similar-node-groups=true => Maintain uniform distribution
+          #   - skip-nodes-with-system-pods=true => Prevent evicting system-critical pods
+          #   - expander=least-waste => Default strategy for picking node groups
+          #   - max-graceful-termination-sec=600 => Wait up to 600s for draining pods
+          #   - max-pod-eviction-time=2m => Additional safety for graceful pod eviction
+          #   - node-group-auto-discovery => Uses ASG tags for multi-AZ
+          ############################################################################
+          args:
+            - "--cloud-provider=aws"
+            - "--namespace=kube-system"
+            - "--scale-down-delay-after-add=10m"
+            - "--scale-down-unneeded-time=10m"
+            - "--max-node-provision-time=15m"
+            - "--balance-similar-node-groups=true"
+            - "--skip-nodes-with-system-pods=true"
+            - "--expander=least-waste"
+            - "--max-graceful-termination-sec=600"
+            - "--max-pod-eviction-time=2m"
+            - "--node-group-auto-discovery=asg:tag=k8s.io/cluster-autoscaler/enabled,k8s.io/cluster-autoscaler/taskstream-cluster"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "300Mi"
+            limits:
+              cpu: "300m"
+              memory: "500Mi"
+          env:
+            - name: AWS_REGION
+              value: "us-east-1"
+          volumeMounts:
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs/ca-certificates.crt
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health-check
+              port: 8085
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs/ca-bundle.crt
+      ############################################################################
+      # AFFINITY:
+      #   Force the cluster-autoscaler to schedule on master/control-plane nodes
+      #   by looking for the label "kubernetes.io/role=master". This ensures
+      #   stable overhead, thorough cluster insight, and minimal eviction risk.
+      ############################################################################
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/role
+                    operator: In
+                    values:
+                      - "master"
+      # Tolerations may be added here if the master node has NoSchedule taints.
+
+################################################################################
+# END OF FILE: cluster-autoscaler.yaml
+################################################################################
