@@ -1,0 +1,344 @@
+################################################################################
+# HELM VALUES FILE FOR COMPREHENSIVE MONITORING STACK
+# File Path: infrastructure/helm/values/monitoring.yaml
+#
+# DESCRIPTION:
+#   This Helm values configuration file (monitoring.yaml) sets up a unified and
+#   enterprise-grade monitoring solution for the TaskStream AI platform, addressing:
+#     - System Monitoring (Tech Specs §2.4.1) with Prometheus (v2.45.0), Grafana
+#       (v9.5.3), and Jaeger (v1.45).
+#     - System Reliability (Tech Specs §1.2 Success Criteria) by enforcing 99.9%
+#       uptime monitoring and extended retention.
+#     - Infrastructure Monitoring (Tech Specs §8.5) through enhanced metrics,
+#       ML-specific dashboards, and advanced security controls.
+#
+# REQUIREMENTS ADDRESSED:
+#   1) System Monitoring: Enhanced ML metrics & dashboards with specialized rules.
+#   2) System Reliability: Alerting & extended data retention for 99.9% uptime SLO.
+#   3) Infrastructure Monitoring: Full-stack resource observability & security context.
+#
+# IMPORT REFERENCES:
+#   - Internal Imports:
+#       1) prometheus-config (ConfigMap) in prometheus/configmap.yaml
+#           - Exports: prometheus.yml, recording_rules.yml, alerting_rules.yml
+#       2) grafana-config (ConfigMap) in grafana/configmap.yaml
+#           - Exports: grafana.ini, ml-dashboards
+#       3) jaeger-deployment (Deployment) in jaeger/deployment.yaml
+#           - Exports: jaeger-container, sampling-config
+#
+#   - External Imports (Libraries/Images):
+#       1) prom/prometheus:v2.45.0     # Enhanced Prometheus server
+#       2) grafana/grafana:9.5.3       # Enterprise Grafana distribution
+#       3) jaegertracing/all-in-one:1.45
+#          # Jaeger all-in-one with optimized sampling
+#
+# GLOBALS:
+#   - namespace: "monitoring"
+#   - securityContext:
+#       runAsNonRoot: true
+#       runAsUser: 65534
+#       fsGroup: 65534
+#
+# EXPORTS (as specified in JSON):
+#   1) prometheus:
+#        - server         (Prometheus server configuration)
+#        - alertmanager   (Alertmanager configuration)
+#        - mlRules        (ML-specific recording & alerting rules)
+#   2) grafana:
+#        - server         (Core Grafana configuration)
+#        - mlDashboards   (Machine Learning dashboards configuration)
+#        - security       (Security-related configuration)
+#   3) jaeger:
+#        - allInOne       (Jaeger all-in-one container configuration)
+#        - sampling       (Jaeger sampling strategy configuration)
+#
+# NOTE:
+#   The structure below follows Helm conventions, defining top-level keys for
+#   each monitoring component and subkeys for ephemeral or persistent configurations.
+################################################################################
+
+################################################################################
+# GLOBAL SETTINGS
+################################################################################
+global:
+  # The namespace in which all these monitoring components operate.
+  namespace: "monitoring"
+
+  # Security Context for controlling how Pods are run. Values are inherited by
+  # workloads that choose to leverage global security context settings.
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    fsGroup: 65534
+
+################################################################################
+# PROMETHEUS CONFIGURATION
+################################################################################
+prometheus:
+
+  ##############################################################################
+  # SERVER: The main Prometheus server configuration, referencing enhanced ML
+  #         metrics and strict retention for SLO tracking. This block addresses:
+  #         - External import: prom/prometheus:v2.45.0
+  #         - Internal import: prometheus.yml (from prometheus-config configmap)
+  #         - Extended retention for 99.9% uptime ML metrics
+  ##############################################################################
+  server:
+    # Image references the official Prometheus container (v2.45.0).
+    image:
+      repository: "prom/prometheus"
+      tag: "v2.45.0"
+      pullPolicy: "IfNotPresent"  # Typically "IfNotPresent" to reduce bandwidth usage
+
+    # Resources define CPU and memory constraints for automatic scaling or scheduling.
+    resources:
+      limits:
+        cpu: "1000m"
+        memory: "2Gi"
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+
+    # Data retention for historical queries and SLA analysis. 15d aligns with
+    # short-term but coverage to identify incident patterns.
+    retention: "15d"
+
+    # Scrape interval determines how often Prometheus scrapes metrics endpoints.
+    # 15s is the recommended interval for dynamic environments.
+    scrapeInterval: "15s"
+
+    # Evaluation interval for running recording rules and alerts.
+    evaluationInterval: "15s"
+
+    # If enableAdminAPI is set to true, admin endpoints can mutate or delete data.
+    # We keep it false for better security posture.
+    enableAdminAPI: false
+
+    # Persistent storage for the Prometheus TSDB.
+    persistentVolume:
+      size: "50Gi"
+      storageClass: "gp2"
+
+    # Security context ensures the container runs with non-root privileges.
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+
+
+  ##############################################################################
+  # ALERTMANAGER: Manages alerts triggered by Prometheus. This block can define
+  #               how alertmanager is configured, though the JSON specification
+  #               does not provide explicit parameters. We still publish it as
+  #               an export (alertmanager).
+  ##############################################################################
+  alertmanager:
+    # (Optional) Container image for Alertmanager (manage versions as needed)
+    image:
+      repository: "prom/alertmanager"
+      tag: "v0.25.0"  # Example stable version near Prometheus version
+
+    # Resource constraints for the Alertmanager container
+    resources:
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+      requests:
+        cpu: "250m"
+        memory: "512Mi"
+
+    # Define a default route or config file can be loaded from a ConfigMap if needed.
+    config: |
+      route:
+        receiver: 'default-email'
+      receivers:
+        - name: 'default-email'
+          email_configs:
+            - to: 'alerts@taskstream.ai'
+              send_resolved: true
+
+    # Optionally reference a persisted volume for local silences data
+    persistentVolume:
+      size: "5Gi"
+      storageClass: "gp2"
+
+
+  ##############################################################################
+  # MLRULES: Specialized recording and alerting rules for ML-based tasks.
+  #          Points to the ConfigMap that has recording_rules.yml and
+  #          alerting_rules.yml (imported from prometheus-config).
+  ##############################################################################
+  mlRules:
+    # Name of the ConfigMap providing Prometheus ML-specific rules
+    recordingRulesConfigMap: "prometheus-config"
+    recordingRulesFile: "recording.rules"
+
+    alertingRulesConfigMap: "prometheus-config"
+    alertingRulesFile: "alerting.rules"
+
+    # Additional subkeys if we want to reference or override advanced ML rule sets
+    # For example, we can specify a custom rule group for SLO-based alerting
+    customRuleGroupName: "taskstream_slos"
+
+################################################################################
+# GRAFANA CONFIGURATION
+################################################################################
+grafana:
+
+  ##############################################################################
+  # SERVER: The main Grafana server configuration, referencing:
+  #         - External import: grafana/grafana:9.5.3
+  #         - Internal import: grafana.ini from grafana-config configmap
+  ##############################################################################
+  server:
+    # Container image for the Grafana server.
+    image:
+      repository: "grafana/grafana"
+      tag: "9.5.3"
+      pullPolicy: "IfNotPresent"
+
+    # Basic resource requirements for Grafana.
+    resources:
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+      requests:
+        cpu: "250m"
+        memory: "512Mi"
+
+    # Helm typically requires an admin password. We expect a Secret or environment
+    # injection, so the default is hashed out. 
+    adminUser: "admin"
+    adminPassword: "CHANGE_ME_IN_PRODUCTION"
+
+    # Load the core Grafana configuration from the referenced configmap: grafana-config
+    # Specifically, the 'grafana.ini' data key.
+    configMapName: "grafana-config"
+    configMapKey: "grafana.ini"
+
+    # Persistent volume for dashboards, plugin data, etc.
+    persistentVolume:
+      enabled: true
+      size: "5Gi"
+      storageClass: "gp2"
+
+    # Optionally set nodeSelector or tolerations for scheduling
+    nodeSelector: {}
+    tolerations: []
+
+    # Additional advanced settings can be placed here
+    additionalEnv:
+      - name: GF_INSTALL_PLUGINS
+        value: "nginx-app; grafana-clock-panel"
+
+
+  ##############################################################################
+  # MLDASHBOARDS: Automated provisioning of ML dashboards, referencing:
+  #               - system_overview.json
+  #               - nlp_services.json
+  #               - task_management.json
+  #               - analytics.json
+  #               from grafana-config configmap.
+  ##############################################################################
+  mlDashboards:
+    # We link to the same 'grafana-config' but specify the relevant JSON dashboards:
+    configMapName: "grafana-config"
+
+    # Each key points to the particular .json or provisioning file in the ConfigMap
+    dashboardsProvisioningFile: "dashboards-provisioning.yaml"
+    systemOverviewFile: "system_overview.json"
+    nlpServicesFile: "nlp_services.json"
+    taskManagementFile: "task_management.json"
+    analyticsFile: "analytics.json"
+
+    # By default, Helm charts will mount these files into /etc/grafana/dashboards
+    # The dashboards-provisioning.yaml ensures they are discovered by Grafana.
+
+  ##############################################################################
+  # SECURITY: Additional security and access controls for Grafana.
+  ##############################################################################
+  security:
+    # Example of restricting same-site cookies or enabling strict content security.
+    enforceContentSecurityPolicy: true
+    enableGravatar: false
+    disableSignoutMenu: false
+    cookieSecure: true
+    strictTransportSecurity: true
+
+################################################################################
+# JAEGER CONFIGURATION
+################################################################################
+jaeger:
+
+  ##############################################################################
+  # ALLINONE: Jaeger in all-in-one mode, referencing:
+  #           - External import: jaegertracing/all-in-one:1.45
+  #           - Internal import: the container definition from jaeger-deployment
+  ##############################################################################
+  allInOne:
+    # The official Jaeger all-in-one container supports agent, collector, and query.
+    image:
+      repository: "jaegertracing/all-in-one"
+      tag: "1.45"
+      pullPolicy: "IfNotPresent"
+
+    # Resource constraints for the Jaeger all-in-one container.
+    resources:
+      limits:
+        cpu: "1000m"
+        memory: "2Gi"
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+
+    # By default, Jaeger UI and collector run on separate container ports
+    ports:
+      - name: http-query
+        containerPort: 16686
+      - name: grpc-collector
+        containerPort: 14250
+      - name: zipkin
+        containerPort: 9411
+
+    # Basic config for ephemeral or persistent volume usage
+    persistentVolume:
+      enabled: false
+      size: "1Gi"
+      storageClass: "gp2"
+
+    # Security settings
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+
+    # If we want to override default environment variables:
+    env:
+      - name: MEMORY_MAX_TRACES
+        value: "50000"
+      - name: COLLECTOR_ZIPKIN_HOST_PORT
+        value: ":9411"
+
+
+  ##############################################################################
+  # SAMPLING: Configuration for advanced sampling strategies, referencing
+  #           the 'sampling-config' from jaeger-deployment (imported).
+  ##############################################################################
+  sampling:
+    # Name of the config file or configmap that includes advanced sampling definitions.
+    configMapName: "jaeger"
+    configMapKey: "sampling-config"
+    # For example, a simple JSON:
+    defaultSamplingProbability: 0.05
+    # Additional overrides for specific services, if needed:
+    serviceSpecificStrategies: |
+      {
+        "serviceA": 0.10,
+        "serviceB": 0.02
+      }
+
+################################################################################
+# END OF FILE
+################################################################################
