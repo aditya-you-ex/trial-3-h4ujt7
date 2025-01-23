@@ -1,0 +1,198 @@
+# =============================================================================
+# Kubernetes NetworkPolicy Resources (compatible with Kubernetes v1.27+).
+# These policies implement granular zero-trust network segmentation and adhere
+# to enterprise-grade security architecture requirements. They also help meet
+# SOC 2 Type II and ISO 27001 compliance demands by enforcing strict ingress
+# and egress controls across different namespaces within the TaskStream AI
+# platform. Each policy is accompanied by extensive comments and details.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1) DEFAULT DENY-ALL POLICY
+# -----------------------------------------------------------------------------
+# Name: default-deny-all
+# Namespace: default
+# -----------------------------------------------------------------------------
+# This NetworkPolicy completely denies all ingress and egress traffic. It serves
+# as a security baseline in the 'default' namespace by ensuring that no pod can
+# receive or send any traffic unless specifically allowed by another policy.
+# -----------------------------------------------------------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: default
+spec:
+  # The empty podSelector here means every Pod in this namespace is subject
+  # to this restrictive policy.
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress rules => all inbound traffic is denied by default.
+  ingress: []
+  # No egress rules => all outbound traffic is denied by default.
+  egress: []
+
+# -----------------------------------------------------------------------------
+# 2) ANALYTICS NETWORK POLICY
+# -----------------------------------------------------------------------------
+# Name: analytics-network-policy
+# Namespace: analytics
+# -----------------------------------------------------------------------------
+# This policy applies to pods with label component=analytics, security-tier=restricted.
+# Ingress is restricted to traffic originating from:
+#   - The tasks namespace (pods labeled role=api).
+#   - The monitoring namespace.
+# Egress is allowed only to the monitoring namespace on TCP port 9090.
+# -----------------------------------------------------------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: analytics-network-policy
+  namespace: analytics
+spec:
+  # Targets only analytics pods with specific security tier.
+  podSelector:
+    matchLabels:
+      component: "analytics"
+      security-tier: "restricted"
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        # 1) Allow from tasks namespace, but only pods labeled role=api.
+        - namespaceSelector:
+            matchLabels:
+              name: "tasks"
+          podSelector:
+            matchLabels:
+              role: "api"
+        # 2) Allow from monitoring namespace (no specific pod label required).
+        - namespaceSelector:
+            matchLabels:
+              name: "monitoring"
+      # Port range 8080-8085 enables controlled inbound traffic to analytics pods.
+      ports:
+        - protocol: TCP
+          port: 8080
+          endPort: 8085
+  egress:
+    - to:
+        # Egress to monitoring for metrics or monitoring traffic.
+        - namespaceSelector:
+            matchLabels:
+              name: "monitoring"
+      ports:
+        - protocol: TCP
+          port: 9090
+
+# -----------------------------------------------------------------------------
+# 3) NLP NETWORK POLICY
+# -----------------------------------------------------------------------------
+# Name: nlp-network-policy
+# Namespace: nlp
+# -----------------------------------------------------------------------------
+# This policy applies to pods with label component=nlp, security-tier=restricted.
+# Ingress is permitted only from:
+#   - The tasks namespace (pods labeled role=processor).
+#   - The monitoring namespace.
+# Egress is allowed to the monitoring namespace on TCP port 9090.
+# -----------------------------------------------------------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nlp-network-policy
+  namespace: nlp
+spec:
+  # Targets only nlp pods with specific security tier.
+  podSelector:
+    matchLabels:
+      component: "nlp"
+      security-tier: "restricted"
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        # 1) Allow from tasks namespace, specifically pods labeled role=processor.
+        - namespaceSelector:
+            matchLabels:
+              name: "tasks"
+          podSelector:
+            matchLabels:
+              role: "processor"
+        # 2) Allow from monitoring namespace for telemetry or auditing.
+        - namespaceSelector:
+            matchLabels:
+              name: "monitoring"
+      # Port 5000 is made accessible for inbound traffic to NLP pods.
+      ports:
+        - protocol: TCP
+          port: 5000
+  egress:
+    - to:
+        # Egress to monitoring namespace only, for sending metrics or logs.
+        - namespaceSelector:
+            matchLabels:
+              name: "monitoring"
+      ports:
+        - protocol: TCP
+          port: 9090
+
+# -----------------------------------------------------------------------------
+# 4) MONITORING NETWORK POLICY
+# -----------------------------------------------------------------------------
+# Name: monitoring-network-policy
+# Namespace: monitoring
+# -----------------------------------------------------------------------------
+# This policy applies to pods with label component=monitoring, security-tier=system.
+# Ingress is allowed from analytics, nlp, and tasks namespaces on the specified
+# ports. Egress is currently denied by specifying an empty egress rule set.
+# This architecture ensures that only traffic from whitelisted namespaces can
+# communicate with monitoring services, providing comprehensive visibility and
+# compliance support.
+# -----------------------------------------------------------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-network-policy
+  namespace: monitoring
+spec:
+  # Targets monitoring pods with a system-level security tier.
+  podSelector:
+    matchLabels:
+      component: "monitoring"
+      security-tier: "system"
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        # Allow inbound traffic from the analytics namespace.
+        - namespaceSelector:
+            matchLabels:
+              name: "analytics"
+        # Allow inbound traffic from the nlp namespace.
+        - namespaceSelector:
+            matchLabels:
+              name: "nlp"
+        # Allow inbound traffic from the tasks namespace.
+        - namespaceSelector:
+            matchLabels:
+              name: "tasks"
+      # TCP port 9090 is commonly used for Prometheus scraping,
+      # ports 9091-9095 cover additional monitoring endpoints.
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 9091
+          endPort: 9095
+  # Empty egress => denies all outbound connections from monitoring pods by default.
+  egress: []
