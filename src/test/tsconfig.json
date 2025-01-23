@@ -1,0 +1,235 @@
+{
+  /* 
+    -----------------------------------------------------------------------------------------
+    TaskStream AI: TypeScript Configuration for Test Environment (TypeScript ^5.0.0)
+    -----------------------------------------------------------------------------------------
+    This file merges and extends essential configurations from both the backend (../backend/tsconfig.json)
+    and the frontend (../web/tsconfig.json) to enable comprehensive testing across all parts of the
+    TaskStream AI platform. It provides a unified foundation for unit, integration, E2E, performance,
+    security, and load testing, ensuring code quality and maintainability.
+
+    EXTERNAL DEPENDENCIES (per IE2):
+      - "typescript"@^5.0.0 : Core TypeScript compiler and language services
+      - "@types/jest"@^29.0.0 : TypeScript definitions for Jest (unit, integration testing)
+      - "@types/cypress"@^1.1.3 : TypeScript definitions for Cypress (E2E testing)
+
+    REFERENCES TO TECHNICAL SPECIFICATIONS:
+      1. Code Quality Standards (Section 8.1 Additional Technical Information)
+         - Requires minimum 80% test coverage and robust type safety.
+      2. Programming Languages (Section 4.1)
+         - TypeScript 5.0+ to leverage enhanced type safety, maintainability, and robust test tooling.
+
+    USAGE:
+      - "extends": Inherits settings from the backend tsconfig for Node.js-based or server tests.
+      - "references": Allows composite build references to both backend and frontend for cross-project testing.
+      - "compilerOptions": Overrides or expands certain compilation settings specifically for test scenarios.
+      - "include": Points to all test-related TypeScript files (unit, integration, E2E, performance, security, load).
+      - "exclude": Omits distribution directories, coverage outputs, and node_modules to optimize the compilation process.
+
+    -----------------------------------------------------------------------------------------
+  */
+
+  "extends": "../backend/tsconfig.json",
+
+  /* 
+    Composite references to ensure TypeScript recognizes and builds 
+    both the backend (../backend) and the frontend (../web) configurations 
+    when running tests for TaskStream AI.
+  */
+  "references": [
+    { "path": "../backend" },
+    { "path": "../web" }
+  ],
+
+  /* 
+    Compiler options specifically tailored for test scenarios:
+    - Adopts "commonjs" for Node-based testing environments.
+    - Includes "DOM" for browser-based E2E tests (e.g., Cypress).
+    - Maintains strictness and consistency with both backend and frontend.
+  */
+  "compilerOptions": {
+    /* 
+      Target: Moves towards modern ECMAScript features (ES2022) while preserving 
+      compatibility with typical Node.js runtimes for testing.
+    */
+    "target": "ES2022",
+
+    /* 
+      Module: Uses CommonJS for tests running under Node.
+    */
+    "module": "commonjs",
+
+    /* 
+      Lib: Incorporates both modern JavaScript and DOM library definitions to 
+      accommodate headless browser/E2E testing (via Cypress) as well as Node scenarios.
+    */
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+
+    /* 
+      outDir: Destination folder for compiled test output.
+      This is particularly helpful if tests need to be transpiled for coverage or debugging.
+    */
+    "outDir": "./dist",
+
+    /* 
+      rootDir: Root directory for the test environment, ensuring test sources
+      can exist in multiple nested directories.
+    */
+    "rootDir": ".",
+
+    /* 
+      strict: Maintains strict type-checking for robust test code.
+    */
+    "strict": true,
+
+    /* 
+      moduleResolution: Node-based resolution is crucial for test scenarios that
+      rely on Node modules, mocking libraries, and stubs.
+    */
+    "moduleResolution": "node",
+
+    /* 
+      baseUrl: Essential for properly resolving test utilities, fixture directories, 
+      or shared test code throughout multiple test types.
+    */
+    "baseUrl": ".",
+
+    /* 
+      paths: Custom aliases for various test categories,
+      facilitating easier import statements in unit, integration, E2E, performance, 
+      security, load, and utility test directories.
+    */
+    "paths": {
+      "@utils/*": ["utils/*"],
+      "@fixtures/*": ["e2e/fixtures/*"],
+      "@integration/*": ["integration/*"],
+      "@unit/*": ["unit/*"],
+      "@performance/*": ["performance/*"],
+      "@security/*": ["security/*"],
+      "@load/*": ["load/*"]
+    },
+
+    /* 
+      esModuleInterop: Allows default imports from modules that export via CommonJS.
+      This is beneficial when dealing with external testing or assertion libraries.
+    */
+    "esModuleInterop": true,
+
+    /* 
+      experimentalDecorators and emitDecoratorMetadata are left enabled to 
+      allow advanced patterns in test frameworks or potential dependency injection scenarios.
+    */
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    /* 
+      skipLibCheck: Speeds up test compilation by skipping checks on .d.ts files 
+      for external dependencies like @types/jest, @types/cypress, etc.
+    */
+    "skipLibCheck": true,
+
+    /* 
+      forceConsistentCasingInFileNames: Ensures consistent path and import 
+      statements across different operating systems during testing.
+    */
+    "forceConsistentCasingInFileNames": true,
+
+    /* 
+      resolveJsonModule: Allows direct import of JSON files in test cases, 
+      such as fixture data or mock configurations.
+    */
+    "resolveJsonModule": true,
+
+    /* 
+      removeComments: Removes comments in the output to reduce potential 
+      noise in compiled test artifacts or coverage instrumentation.
+    */
+    "removeComments": true,
+
+    /* 
+      sourceMap: Generates source maps for the test output, 
+      making debugging test failures and coverage analysis easier.
+    */
+    "sourceMap": true,
+
+    /* 
+      declaration and declarationMap: Provide typed structures for test files if 
+      other parts of the codebase or advanced tooling require them.
+    */
+    "declaration": true,
+    "declarationMap": true,
+
+    /* 
+      Enforce best practices in test code:
+      - noUnusedLocals
+      - noUnusedParameters
+      - noImplicitReturns
+      - noFallthroughCasesInSwitch
+    */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* 
+      allowSyntheticDefaultImports: Seamless import of default modules for testing 
+      frameworks and assertion libraries (e.g., jest, cypress).
+    */
+    "allowSyntheticDefaultImports": true,
+
+    /* 
+      types: Incorporates Node, Jest, and Cypress type definitions to cover 
+      unit, integration, and E2E test scenarios within one config.
+    */
+    "types": [
+      "node",
+      "jest",
+      "cypress"
+    ],
+
+    /* 
+      typeRoots: Directories containing custom global type definitions for 
+      advanced or specialized test scenarios.
+    */
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
+
+    /* 
+      incremental: Enables incremental builds for test code, 
+      speeding up repeated test runs.
+    */
+    "incremental": true,
+
+    /* 
+      tsBuildInfoFile: Stores build information for incremental compilation 
+      in the test environment.
+    */
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+
+  /* 
+    INCLUSION AND EXCLUSION OF FILES:
+    These glob patterns ensure coverage of all test files for unit, integration, E2E, 
+    performance, security, and load, while excluding build artifacts and general coverage outputs.
+  */
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "e2e/**/*.ts",
+    "integration/**/*.ts",
+    "unit/**/*.ts",
+    "performance/**/*.ts",
+    "security/**/*.ts",
+    "load/**/*.ts",
+    "utils/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage"
+  ]
+}
