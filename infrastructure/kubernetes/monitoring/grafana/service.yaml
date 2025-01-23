@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: Service
+
+# ------------------------------------------------------------------------------
+# This Kubernetes Service resource exposes the Grafana monitoring dashboard for
+# the TaskStream AI platform. It is designed to meet the following requirements:
+#  - System Monitoring (from Technical Specifications §2.4.1) by providing
+#    endpoints for visualizing platform metrics in Grafana.
+#  - System Reliability (from Technical Specifications §1.2 - Success Criteria)
+#    by offering access to critical monitoring tools to support 99.9% uptime.
+#  - Infrastructure Monitoring (from Technical Specifications §8.5 - IaC)
+#    through comprehensive annotations, enabling integration with Prometheus
+#    and AWS load balancing for production-grade settings.
+#
+# Internal Import Reference:
+#  - "grafana-deployment" (Deployment) in deployment.yaml
+#    Labels must align with the Deployment's metadata to ensure correct Pod
+#    discovery and traffic routing.
+#
+# Export:
+#  - "grafana-service" (Service) exposing named port "grafana-dashboard"
+#    for dashboard access, fulfilling advanced security and monitoring features.
+# ------------------------------------------------------------------------------
+
+metadata:
+  # --------------------------------------------------------------------------
+  # "name" uniquely identifies this Service. "namespace" ensures that all
+  # resources related to monitoring remain properly isolated in the "monitoring"
+  # namespace. The "labels" and "annotations" here align with the JSON spec and
+  # incorporate production-friendly metadata for system and security tooling.
+  # --------------------------------------------------------------------------
+  name: grafana-service
+  namespace: monitoring
+
+  labels:
+    app: grafana
+    component: monitoring
+    version: v1
+    part-of: taskstream-monitoring
+    # ------------------------------------------------------------------------
+    # IMPORTANT: Aligning "tier" with "metrics" from "grafana-deployment"
+    # so that Pods labeled with tier=metrics are properly discovered.
+    # ------------------------------------------------------------------------
+    tier: metrics
+
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3000"
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+    meta.helm.sh/release-name: "grafana"
+    meta.helm.sh/release-namespace: "monitoring"
+    kubernetes.io/ingress-bandwidth: "100M"
+    kubernetes.io/egress-bandwidth: "100M"
+
+spec:
+  # --------------------------------------------------------------------------
+  # "type: ClusterIP" means the Service is internally accessible within the
+  # cluster. This can be complemented by Ingress or port-forwarding to allow
+  # external access to the Grafana dashboard, depending on production needs.
+  # --------------------------------------------------------------------------
+  type: ClusterIP
+
+  # --------------------------------------------------------------------------
+  # The "selector" must match the labels of the target Pods. Since the internal
+  # "grafana-deployment.yaml" sets "app: grafana", "component: monitoring",
+  # "tier: metrics", "version: v1", and "part-of: taskstream-monitoring"
+  # on its Pods, we replicate them here to ensure correct service binding.
+  # --------------------------------------------------------------------------
+  selector:
+    app: grafana
+    component: monitoring
+    version: v1
+    part-of: taskstream-monitoring
+    tier: metrics
+
+  # --------------------------------------------------------------------------
+  # Defining a single port, named "grafana-dashboard", which maps to 3000 (the
+  # default Grafana container port). This aligns with the JSON specification
+  # requiring the "grafana-dashboard" port to be exposed for monitoring and
+  # analytics. Network traffic (TCP) flows from port 3000 on the Service to
+  # port 3000 in the container.
+  # --------------------------------------------------------------------------
+  ports:
+    - name: grafana-dashboard
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+
+  # --------------------------------------------------------------------------
+  # "sessionAffinity: None" allows each request to potentially go to any pod
+  # behind this Service (though here we typically run a single-replica for
+  # Grafana; can be scaled if needed).
+  # --------------------------------------------------------------------------
+  sessionAffinity: None
+
+  # --------------------------------------------------------------------------
+  # "publishNotReadyAddresses: false" ensures that only ready pod endpoints
+  # are published, crucial for reliability and stable user experience.
+  # --------------------------------------------------------------------------
+  publishNotReadyAddresses: false
+
+  # --------------------------------------------------------------------------
+  # "internalTrafficPolicy: Cluster" allows the cluster to route traffic
+  # across all node pools/regions within the Kubernetes environment, supporting
+  # operational resilience aligned with the 99.9% uptime target.
+  # --------------------------------------------------------------------------
+  internalTrafficPolicy: Cluster
