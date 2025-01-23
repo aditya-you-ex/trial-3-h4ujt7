@@ -1,0 +1,98 @@
+###############################################################################
+# TaskStream AI Web Application .dockerignore
+# -----------------------------------------------------------------------------
+# This file governs which files and directories are excluded from the Docker
+# build context to:
+# 1) Minimize the final container size (target ~250MB).
+# 2) Comply with security considerations (exclude sensitive and dev-only files).
+# 3) Align with the multi-stage build process specified in Dockerfile.
+# 4) Optimize production build performance in a multi-region AWS environment.
+#
+# The following patterns are derived from the technical specs, including:
+#  - Development/Build Exclusions
+#  - Configuration & Security Exclusions
+#  - Documentation & Logs
+#  - System Files
+###############################################################################
+
+###############################################################################
+# 1) DEVELOPMENT FILES
+# Exclude development-only directories and files that are irrelevant to
+# the production build and would increase the image size or reveal sensitive info.
+###############################################################################
+.git/
+.vscode/
+.idea/
+*.test.*
+*.spec.*
+jest.config.*
+coverage/
+__tests__/
+__mocks__/
+
+###############################################################################
+# 2) BUILD ARTIFACTS
+# Omit transient build folders, existing dependencies, or output files
+# to ensure Docker only packs the necessary files for building fresh.
+###############################################################################
+dist/
+build/
+node_modules/
+.next/
+out/
+.cache/
+
+###############################################################################
+# 3) CONFIGURATION FILES
+# Exclude environment-specific and developer config files
+# that should not be baked into the final production image.
+###############################################################################
+.env*
+.eslintrc*
+.prettierrc*
+tsconfig.json
+babel.config.*
+webpack.config.*
+next.config.*
+
+###############################################################################
+# 4) DOCUMENTATION
+# Remove docs and other markdown files that are unnecessary for runtime.
+###############################################################################
+*.md
+LICENSE
+README.md
+CHANGELOG.md
+docs/
+
+###############################################################################
+# 5) LOG FILES
+# Eliminate local, debug, or error logs to keep the build context clean.
+###############################################################################
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+###############################################################################
+# 6) SYSTEM FILES
+# Disregard common OS and housekeeping files that have no bearing on production.
+###############################################################################
+.DS_Store
+.gitignore
+.dockerignore
+Thumbs.db
+
+###############################################################################
+# 7) SECURITY CONSIDERATIONS
+# Prevent sensitive items and security artifacts from leaking into the container.
+###############################################################################
+certs/
+*.pem
+*.crt
+*.key
+test-fixtures/
+security-scan-reports/
+vulnerabilities-report/
+secrets/
