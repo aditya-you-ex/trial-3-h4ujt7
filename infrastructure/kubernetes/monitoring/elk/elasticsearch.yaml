@@ -1,0 +1,156 @@
+################################################################################
+# ELASTICSEARCH MONITORING CLUSTER MANIFEST
+# ------------------------------------------------------------------------------
+# This file deploys Elasticsearch (v8.0.0) in the "monitoring" namespace as part
+# of the ELK stack for centralized logging and monitoring in the TaskStream AI
+# platform. It addresses the following requirements from the technical specs:
+#   - System Monitoring (cross-cutting concerns, 2.4.1)
+#   - Infrastructure Monitoring (CI/CD pipeline, 8.5 Infrastructure as Code)
+#
+# Imports and Globals:
+#   - Internal Import (ConfigMap reference): storage-elasticsearch-config
+#   - External Import (Docker image): docker.elastic.co/elasticsearch/elasticsearch:8.0.0
+#   - Global Namespace: monitoring
+#   - Global ServiceAccount: elasticsearch-sa
+#
+# Exports (per JSON specification):
+#   1) elasticsearch-config (ConfigMap)
+#   2) elasticsearch-service (Service)
+#   3) elasticsearch-statefulset (StatefulSet)
+#
+# Notes on Security & High Availability:
+#   - 'security-tier: restricted' label for Pods
+#   - X-Pack Security, SSL, and Audit are enabled
+#   - Configured for cluster formation with 2 replicas
+#   - Prometheus scrape annotations are included
+#   - Anti-affinity ensures Pods spread across different Kubernetes nodes
+################################################################################
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: monitoring
+  # Export: elasticsearch-config
+  # Purpose: Provides enhanced Elasticsearch configuration for monitoring cluster
+data:
+  elasticsearch.yml: |
+    ########################################################################
+    # Elasticsearch configuration for the TaskStream AI monitoring cluster
+    # Referencing base config from "storage-elasticsearch-config"
+    # (imported internally) and incorporating JSON specification overrides.
+    ########################################################################
+    cluster.name: "taskstream-monitoring"
+    node.name: "${HOSTNAME}"
+    discovery.seed_hosts: "elasticsearch-0.elasticsearch,elasticsearch-1.elasticsearch"
+    cluster.initial_master_nodes: "elasticsearch-0,elasticsearch-1"
+    network.host: "0.0.0.0"
+    xpack.security.enabled: true
+    xpack.monitoring.collection.enabled: true
+    xpack.security.transport.ssl.enabled: true
+    xpack.security.audit.enabled: true
+    path.data: "/usr/share/elasticsearch/data"
+    path.logs: "/usr/share/elasticsearch/logs"
+    indices.memory.index_buffer_size: "30%"
+    indices.queries.cache.size: "20%"
+    bootstrap.memory_lock: true
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: monitoring
+  labels:
+    app: elasticsearch
+    component: monitoring
+  # Export: elasticsearch-service
+  # Purpose: Exposes Elasticsearch cluster endpoints with secure ports
+spec:
+  clusterIP: None
+  selector:
+    app: elasticsearch
+  ports:
+    - port: 9200
+      name: rest
+    - port: 9300
+      name: transport
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: monitoring
+  labels:
+    app: elasticsearch
+    component: monitoring
+    security-tier: restricted
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9200"
+  # Export: elasticsearch-statefulset
+  # Purpose: Deploys and manages Elasticsearch monitoring cluster nodes
+spec:
+  replicas: 2
+  serviceName: "elasticsearch"
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  securityContext:
+    fsGroup: 1000
+    runAsUser: 1000
+    runAsNonRoot: true
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+      annotations:
+        co.elastic.logs/enabled: "true"
+    spec:
+      ########################################################################
+      # Service Account for enhanced security and restricted privileges
+      ########################################################################
+      serviceAccountName: "elasticsearch-sa"
+      terminationGracePeriodSeconds: 300
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: elasticsearch
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: elasticsearch
+          ######################################################################
+          # External Import Reference (version 8.0.0) for official container
+          ######################################################################
+          image: "docker.elastic.co/elasticsearch/elasticsearch:8.0.0"
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "2Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          ports:
+            - containerPort: 9200
+              name: rest
+            - containerPort: 9300
+              name: transport
+          livenessProbe:
+            httpGet:
+              path: "/_cluster/health"
+              port: 9200
+            initialDelaySeconds: 90
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: "/_cluster/health"
+              port: 9200
+            initialDelaySeconds: 60
+            periodSeconds: 15
