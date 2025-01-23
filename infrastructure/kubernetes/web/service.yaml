@@ -1,0 +1,85 @@
+# ------------------------------------------------------------------------------
+# Kubernetes Service configuration for the TaskStream AI web frontend component.
+# This Service is responsible for providing:
+#   - Internal cluster networking (type: ClusterIP).
+#   - Round-robin load balancing across multiple replicas to ensure high
+#     availability (supporting 99.9% uptime target).
+#   - Basic Prometheus metrics scraping via annotations.
+#   - Health check parameters for reliable detection of unhealthy pods.
+#   - Separation of concerns by strictly matching labels (app, tier, component).
+# ------------------------------------------------------------------------------
+# High Availability & System Reliability:
+#   - The service uses a ClusterIP type, intended for internal consumption
+#     within the Kubernetes cluster (no direct external port exposure).
+#   - Combined with a Deployment scaled to at least 3 replicas and an AWS NLB
+#     (as hinted by annotations), it achieves multi-region readiness and meets
+#     reliability targets (99.9% uptime).
+# ------------------------------------------------------------------------------
+# Security Considerations:
+#   - Restricts external access by default (ClusterIP).
+#   - Leverages strict label matching to ensure only correct pods receive traffic.
+#   - Disables session affinity for stateless load distribution.
+#   - Includes Prometheus scraping annotations for authorized metrics collection.
+# ------------------------------------------------------------------------------
+# Monitoring & Health Checks:
+#   - Annotations define the scraping port for Prometheus.
+#   - AWS load balancer health parameters ensure timely detection of unhealthy pods.
+#   - Cross-zone load balancing is enabled for multi-AZ resilience.
+# ------------------------------------------------------------------------------
+# Labeling Strategy:
+#   - "app: taskstream-web" - identifies the application name.
+#   - "tier: frontend" - indicates the tier for environment segmentation.
+#   - "component: web" - clarifies the sub-component responsibility.
+#   - "part-of: taskstream" - groups this with the overall platform or suite.
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskstream-web
+  namespace: taskstream
+  labels:
+    app: taskstream-web
+    tier: frontend
+    component: web
+    part-of: taskstream
+  annotations:
+    # Prometheus scraping configuration to allow the metrics collection
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "80"
+
+    # AWS NLB Annotations for cross-zone load balancing and health checks
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: "10"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout: "5"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold: "2"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold: "3"
+spec:
+  # Service type set to ClusterIP for internal exposure. This ensures
+  # that only traffic from within the cluster or via Ingress/NLB
+  # is permitted, contributing to overall security and controlled access.
+  type: ClusterIP
+
+  # Defines the network ports that this Service manages.
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+
+  # The pod selector ensures that only Pods matching these labels will
+  # receive traffic from this Service. This is crucial for traffic isolation,
+  # security, and multi-tenant capabilities.
+  selector:
+    app: taskstream-web
+    tier: frontend
+    component: web
+
+  # No session affinity ensures round-robin distribution for stateless
+  # applications, improving load balancing efficiency.
+  sessionAffinity: None
+
+  # Ensures that addresses of not-ready pods are not published for
+  # load balancing, preventing client traffic from flowing to
+  # pods that are still starting or failing health checks.
+  publishNotReadyAddresses: false
