@@ -1,0 +1,260 @@
+# =============================================================================
+# KUBERNETES DEPLOYMENT CONFIGURATION - TASKSTREAM AI ANALYTICS SERVICE
+# -----------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This file defines the Deployment resource for the TaskStream AI "analytics-service"
+#   running in the "taskstream-analytics" namespace. It implements predictive analytics
+#   for resource optimization (Tech Specs 1.2, "Analytics Engine"), supports 99.9% uptime
+#   via rolling updates and robust probes (Tech Specs 1.2 "System Reliability"), and
+#   addresses resource optimization constraints (Tech Specs 2.5.2 "Scaling Parameters").
+#
+# INTERNAL IMPORT (IE1):
+#   - analytics-service-hpa (HorizontalPodAutoscaler) from "analytics/hpa.yaml"
+#     * minReplicas: 3
+#     * maxReplicas: 10
+#   This Deployment is referenced by the HPA for dynamic scaling, ensuring CPU/memory
+#   usage <80% with a <30s processing time target.
+#
+# EXTERNAL IMPORTS (IE2) WITH LIBRARY VERSIONS:
+#   1) python@3.11-slim:
+#      - The analytics-service container image is built from a python:3.11-slim base
+#        for a minimal footprint and optimized performance of Python-based analytics.
+#   2) prometheus-client@0.17.0:
+#      - For detailed metrics collection on port 9090, used by Prometheus for
+#        alerting and real-time monitoring.
+#
+# GLOBALS (from JSON spec):
+#   - NAMESPACE: taskstream-analytics
+#   - APP_LABEL: analytics-service
+#
+# DEPLOYMENT SPEC DETAILS:
+#   - RollingUpdate strategy with zero downtime (maxSurge=1, maxUnavailable=0).
+#   - Replicas alignment with HPA minReplicas=3.
+#   - Detailed readiness/liveness/startup probes to maintain 99.9% uptime.
+#   - CPU/Memory requests & limits set for improved resource management.
+#   - Additional securityContext fields ensure pods run as non-root.
+#   - Focus on resource optimization, reliability, and AI-oriented analytics engine.
+#
+# EXPORTS (named members):
+#   - replicas (integer)
+#   - containers (array)
+#   - resources (object)
+#
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-service
+  namespace: taskstream-analytics
+  labels:
+    app: analytics-service
+    component: analytics
+    tier: backend
+    version: v1
+  annotations:
+    kubernetes.io/change-cause: "Initial deployment of analytics service"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+spec:
+  # ---------------------------------------------------------------------------
+  # "replicas" initially set to 3, matching the HPA's minReplicas=3. The HPA
+  # can scale up to maxReplicas=10 (see analytics-service-hpa in hpa.yaml).
+  # ---------------------------------------------------------------------------
+  replicas: 3
+
+  # ---------------------------------------------------------------------------
+  # Strategy ensures rolling updates with no downtime:
+  #   - maxSurge=1 => Allows adding 1 extra pod temporarily during updates
+  #   - maxUnavailable=0 => Ensures no pods are taken offline until a new pod is ready
+  # ---------------------------------------------------------------------------
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  selector:
+    matchLabels:
+      app: analytics-service
+
+  template:
+    metadata:
+      labels:
+        app: analytics-service
+        component: analytics
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+        # This placeholder can be updated to trigger rolling redeploys when config changes
+        checksum/config: "${CONFIG_CHECKSUM}"
+    spec:
+      # -------------------------------------------------------------------------
+      # 60 seconds grace period ensures the application can gracefully shut down
+      # running analytics tasks before container termination.
+      # -------------------------------------------------------------------------
+      terminationGracePeriodSeconds: 60
+
+      # -------------------------------------------------------------------------
+      # Affinity definition spreads pods across different hosts to improve
+      # reliability and avoid single host overload.
+      # -------------------------------------------------------------------------
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - analytics-service
+                topologyKey: "kubernetes.io/hostname"
+
+      containers:
+        - name: analytics-service
+          # This container is built from python:3.11-slim (see external import).
+          # The final image is published as "taskstream/analytics-service:latest".
+          image: "taskstream/analytics-service:latest"
+          imagePullPolicy: Always
+
+          # ---------------------------------------------------------------------
+          # Ports:
+          #   - 8000 => Main HTTP port for the analytics app
+          #   - 9090 => Metrics port (exposed for prometheus-client@0.17.0 scraping)
+          # ---------------------------------------------------------------------
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+            - containerPort: 9090
+              name: metrics
+              protocol: TCP
+
+          # ---------------------------------------------------------------------
+          # Resource requests/limits align with resource optimization objectives:
+          #   - requests => ensures guaranteed minimum CPU/memory
+          #   - limits   => enforces maximum allowable CPU/memory
+          # "resources" is exported as a named member for other modules.
+          # ---------------------------------------------------------------------
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "2Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+
+          # ---------------------------------------------------------------------
+          # Liveness probe ensures the pod is alive:
+          #   - Checks /health on port 8000
+          #   - Waits 30s after startup, then checks every 10s
+          # ---------------------------------------------------------------------
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+
+          # ---------------------------------------------------------------------
+          # Readiness probe ensures the pod is ready to serve requests:
+          #   - Checks /ready on port 8000
+          #   - Waits 15s after container start, then checks every 5s
+          # ---------------------------------------------------------------------
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+
+          # ---------------------------------------------------------------------
+          # Startup probe ensures the container has started properly.
+          #   - Checks /startup on port 8000
+          #   - If it fails up to 30 times, pod is considered not started.
+          # ---------------------------------------------------------------------
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 30
+
+          # ---------------------------------------------------------------------
+          # Environment variables for production analytics:
+          #   - METRICS_PORT => used by prometheus-client@0.17.0
+          #   - MAX_WORKERS => concurrency for data processing
+          #   - PROCESSING_TIMEOUT => default 30s for fast, efficient analytics
+          # ---------------------------------------------------------------------
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: METRICS_PORT
+              value: "9090"
+            - name: MAX_WORKERS
+              value: "4"
+            - name: PROCESSING_TIMEOUT
+              value: "30"
+
+          # ---------------------------------------------------------------------
+          # volumeMounts:
+          #   1) config-volume => analytics-config ConfigMap
+          #   2) secrets-volume => analytics-secrets Secret
+          #   3) tmp-volume => ephemeral /tmp storage for spark or data staging
+          # ---------------------------------------------------------------------
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+              readOnly: true
+            - name: secrets-volume
+              mountPath: /app/secrets
+              readOnly: true
+            - name: tmp-volume
+              mountPath: /tmp
+
+      # -------------------------------------------------------------------------
+      # volumes correlate to the declared volumeMounts above:
+      #   - config-volume => configMap data
+      #   - secrets-volume => secret data
+      #   - tmp-volume => emptyDir for ephemeral usage
+      # -------------------------------------------------------------------------
+      volumes:
+        - name: config-volume
+          configMap:
+            name: analytics-config
+        - name: secrets-volume
+          secret:
+            secretName: analytics-secrets
+        - name: tmp-volume
+          emptyDir: {}
+
+      # -------------------------------------------------------------------------
+      # securityContext ensures a restricted security posture:
+      #   - runAsNonRoot => container must not run as root
+      #   - runAsUser=1000 => local user ID for the container
+      #   - fsGroup=1000 => ensures correct file permissions
+      #   - seccompProfile => uses RuntimeDefault for minimal kernel attack surface
+      # -------------------------------------------------------------------------
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
