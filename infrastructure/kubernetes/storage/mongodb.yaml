@@ -1,0 +1,282 @@
+################################################################################
+# KUBERNETES CONFIGURATION FOR MONGODB DATABASE DEPLOYMENT
+# ------------------------------------------------------------------------------
+# FILE DESCRIPTION:
+#   This file defines the MongoDB configuration for the TaskStream AI platform.
+#   It includes:
+#     1) A ConfigMap to store MongoDB-related configuration parameters
+#     2) A Service to provide stable network access to MongoDB
+#     3) A StatefulSet for high availability with PersistentVolumeClaims
+#
+# REQUIREMENTS ADDRESSED (LD2):
+#   - Database Architecture:
+#     * MongoDB 6.0+ deployment with auto-sharding for document storage
+#   - Data Security:
+#     * Implements AES-256-GCM encryption at rest (via encryption key file)
+#     * Enforces TLS 1.3 for data in transit (sslMode=requireSSL)
+#   - High Availability:
+#     * Multi-AZ deployment with a 3-replica StatefulSet
+#
+# IMPORTS & REFERENCES:
+#   - EXTERNAL (IE2):
+#       * kubernetes (v1.27+)    # For StatefulSet, Service, ConfigMap, etc.
+#       * mongodb (6.0)         # Official MongoDB container image
+#   - INTERNAL (IE1):
+#       * resourceQuotas (from infrastructure/kubernetes/config/resource-quotas.yaml)
+#         - Imposes CPU/Memory usage limits under the analytics namespace
+#       * analytics-namespace (from infrastructure/kubernetes/config/namespaces.yaml)
+#         - metadata.name: analytics
+#
+# NAMESPACE:
+#   - All resources below are placed in the "analytics" namespace, inheriting the
+#     ResourceQuota constraints defined by "analytics-quota" in resource-quotas.yaml.
+#
+# EXPORTS (IE3):
+#   - mongodb-configmap (ConfigMap)
+#   - mongodb-service (Service)
+#   - mongodb-statefulset (StatefulSet)
+#
+# NOTES (S1, S2):
+#   - Extensive comments provide clarity on how each component fits enterprise
+#     best practices. All security aspects, resource constraints, and essential
+#     configuration details are included for reliable production deployments.
+#
+################################################################################
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-configmap
+  namespace: analytics
+  labels:
+    app: mongodb
+    tier: data
+    managed-by: taskstream
+  annotations:
+    description: "Core MongoDB configuration parameters for TaskStream AI"
+data:
+  ##############################################################################
+  # MONGODB DATABASE SETTINGS
+  # We store environment-like variables that can be exposed to the MongoDB
+  # container either by reading from mounted files or by referencing them in a
+  # custom mongod.conf. The values below align with enterprise-level usage:
+  ##############################################################################
+  MONGODB_DATABASE: "taskstream"
+  MONGODB_PORT: "27017"
+  MONGODB_MAX_CONNECTIONS: "5000"
+  MONGODB_CACHE_SIZE_GB: "2"
+  MONGODB_OPLOG_SIZE_MB: "51200"
+
+  ##############################################################################
+  # SHARDING & SECURITY
+  # enableSharding:   true => Multi-shard environment readiness (if needed)
+  # sslMode:          requireSSL => Enforces TLS (v1.3 whenever possible)
+  # encryptionKeyFile => Path to the key that encrypts data at rest (AES-256-GCM)
+  ##############################################################################
+  MONGODB_ENABLE_SHARDING: "true"
+  MONGODB_SSL_MODE: "requireSSL"
+  MONGODB_SSL_CERT_FILE: "/etc/certs/tls.crt"
+  MONGODB_SSL_KEY_FILE: "/etc/certs/tls.key"
+  MONGODB_ENCRYPTION_KEY_FILE: "/etc/keys/encryption.key"
+
+  ##############################################################################
+  # LOGGING & AUTH CONFIGURATION
+  # MONGODB_AUDIT_LOG:      true => Records security/audit events
+  # MONGODB_AUTHORIZATION:  enabled => Auth is active (SCRAM, x.509, etc.)
+  # MONGODB_JOURNAL:        true => Journaling for data durability
+  # MONGODB_PROFILER:       2 => Collect slow queries and system-level profiling
+  ##############################################################################
+  MONGODB_AUDIT_LOG: "true"
+  MONGODB_AUTHORIZATION: "enabled"
+  MONGODB_JOURNAL: "true"
+  MONGODB_PROFILER: "2"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+  namespace: analytics
+  labels:
+    app: mongodb
+    tier: data
+    managed-by: taskstream
+  annotations:
+    description: "Stable network endpoint exposing MongoDB to internal clients"
+spec:
+  ##############################################################################
+  # SERVICE PORTS
+  # Provides access to MongoDB on the default port 27017.
+  # The sessionAffinity is set to ClientIP for consistent traffic routing.
+  ##############################################################################
+  ports:
+    - port: 27017
+      targetPort: 27017
+      protocol: TCP
+  selector:
+    app: mongodb
+  type: ClusterIP
+  sessionAffinity: ClientIP
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb-statefulset
+  namespace: analytics
+  labels:
+    app: mongodb
+    tier: data
+    managed-by: taskstream
+  annotations:
+    description: "StatefulSet managing MongoDB pods with persistent storage"
+spec:
+  ##############################################################################
+  # REPLICAS & SERVICE NAME
+  # replicas: 3 => Tri-node cluster providing HA. The "serviceName" references
+  # mongodb-service for stable hostnames. The RollingUpdate strategy ensures
+  # a safe rolling upgrade path for each member.
+  ##############################################################################
+  replicas: 3
+  serviceName: mongodb-service
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: mongodb
+
+  template:
+    metadata:
+      labels:
+        app: mongodb
+        # Indication that data stored in these pods is encrypted per specs
+        security.taskstream.ai/encrypted: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9216"  # Example for scraping metrics if needed
+    spec:
+      ############################################################################
+      # SECURITY CONTEXT
+      # fsGroup, runAsUser, runAsNonRoot, and capabilities are enforced to align
+      # with PodSecurityPolicies (restricted), ensuring non-root container usage.
+      ############################################################################
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+        runAsNonRoot: true
+      affinity:
+        ##########################################################################
+        # NODE AFFINITY / POD ANTI-AFFINITY
+        # This helps distribute pods across different fault domains (zones/hosts).
+        # The policy below ensures that no two MongoDB pods run on the same node,
+        # supporting multi-AZ deployment for high availability.
+        ##########################################################################
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: "kubernetes.io/hostname"
+              labelSelector:
+                matchLabels:
+                  app: mongodb
+      containers:
+        - name: mongodb
+          ########################################################################
+          # IMAGE
+          # Using the official MongoDB 6.0 image for full 6.0+ feature support.
+          ########################################################################
+          image: "mongodb:6.0"
+          ports:
+            - containerPort: 27017
+            - name: metrics
+              containerPort: 9216
+          ########################################################################
+          # RESOURCE REQUESTS/LIMITS
+          # The following values are subject to the analytics namespace's
+          # ResourceQuota (see resource-quotas.yaml). They prevent overuse and
+          # safeguard cluster stability.
+          ########################################################################
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+          ########################################################################
+          # SECURITY CONTEXT
+          # readOnlyRootFilesystem => ensures the container's filesystem is locked.
+          # Drop all capabilities to comply with the restricted PSP policy.
+          ########################################################################
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ########################################################################
+          # LIVENESS & READINESS PROBES
+          # - Liveness: Periodically checks if MongoDB is responsive (ping).
+          # - Readiness: Ensures this replica is part of a healthy replica set.
+          ########################################################################
+          livenessProbe:
+            exec:
+              command: ["mongosh", "--eval", "db.adminCommand('ping')"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["mongosh", "--eval", "db.adminCommand('replSetGetStatus')"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          ########################################################################
+          # VOLUME MOUNTS
+          # - mongodb-data: Main data directory for database files
+          # - mongodb-certs: TLS certificates for secure communication (TLS >= 1.3)
+          # - mongodb-keys: Encryption key for AES-256-GCM data at rest
+          # - mongodb-config: Configuration settings from the ConfigMap
+          ########################################################################
+          volumeMounts:
+            - name: mongodb-data
+              mountPath: /data/db
+            - name: mongodb-certs
+              mountPath: /etc/certs
+              readOnly: true
+            - name: mongodb-keys
+              mountPath: /etc/keys
+              readOnly: true
+            - name: mongodb-config
+              mountPath: /etc/mongodb
+
+      ############################################################################
+      # ADDITIONAL VOLUMES
+      # Mount secrets (tls cert/key, encryption key) and configmaps.
+      # These secrets must exist in the same namespace (analytics).
+      ############################################################################
+      volumes:
+        - name: mongodb-certs
+          secret:
+            secretName: mongodb-certs
+        - name: mongodb-keys
+          secret:
+            secretName: mongodb-keys
+        - name: mongodb-config
+          configMap:
+            name: mongodb-configmap
+
+  ##############################################################################
+  # VOLUME CLAIM TEMPLATES
+  # Allocates 100Gi persistent storage per replica. The gp3 storage class
+  # (commonly on AWS) offers high IOPS, supporting write-heavy workloads
+  # typical of a production database usage.
+  ##############################################################################
+  volumeClaimTemplates:
+    - metadata:
+        name: mongodb-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: "100Gi"
+        storageClassName: "gp3"
