@@ -1,0 +1,174 @@
+################################################################################
+# Helm Values Configuration for Storage Components
+#
+# This file provides configurations for PostgreSQL, MongoDB, Redis, and
+# Elasticsearch in the TaskStream AI platform. Each section is exported as a
+# top-level key with a nested "config" object, ensuring that only these objects
+# are exposed as required by the platform.
+#
+# It addresses:
+#   - Database Architecture (PostgreSQL 14+, MongoDB 6.0+, Redis 7.0+, Elasticsearch 8.0+)
+#   - Data Security (AES-256-GCM for data at rest, TLS 1.3 for data in transit)
+#   - High Availability (Multi-AZ replicas, automated failover, cluster capabilities)
+#   - Monitoring Integration (Prometheus scraping and alert thresholds)
+#
+# Global placeholders used:
+#   - ${STORAGE_CLASS}: Storage Class for persistent volumes (e.g., "gp3").
+#   - ${BACKUP_RETENTION_DAYS}: Retention period (e.g., "30").
+#   - ${ENCRYPTION_KEY_ROTATION_DAYS}: Key rotation interval (Default: "90").
+################################################################################
+
+postgresql:
+  config:
+    ############################################################################
+    # PostgreSQL Helm Chart Configuration
+    # --------------------------------------------------------------------------
+    # - enabled: Whether to deploy PostgreSQL
+    # - image: Docker repository, tag, and pull policy
+    # - replicas: Number of PostgreSQL replicas for HA
+    # - resources: CPU/memory requests and limits
+    # - storage: Volume size/class for data persistence
+    # - security: SSL mode, data encryption, certificates
+    # - monitoring: Prometheus scraping plus custom alert thresholds
+    # - backup: Automated backup schedule, retention, and type
+    ############################################################################
+    enabled: true
+    image:
+      repository: "postgres"
+      tag: "14.0"
+      pullPolicy: "IfNotPresent"
+    replicas: 3
+    resources:
+      requests:
+        cpu: "2"
+        memory: "4Gi"
+      limits:
+        cpu: "4"
+        memory: "8Gi"
+    storage:
+      size: "100Gi"
+      storageClass: "${STORAGE_CLASS}"
+    security:
+      ssl:
+        enabled: true
+        mode: "verify-full"
+        certRotationDays: 90
+      encryption:
+        dataAtRest: true
+        algorithm: "AES-256-GCM"
+    monitoring:
+      prometheus:
+        enabled: true
+        scrapeInterval: "30s"
+      alerts:
+        diskSpace: "85%"
+        connections: "80%"
+        replicationLag: "30s"
+    backup:
+      enabled: true
+      schedule: "0 2 * * *"
+      retention: "${BACKUP_RETENTION_DAYS}"
+      type: "logical"
+
+mongodb:
+  config:
+    ############################################################################
+    # MongoDB Helm Chart Configuration
+    # --------------------------------------------------------------------------
+    # - enabled: Whether to deploy MongoDB
+    # - image: Docker repository, tag, and pull policy
+    # - replicas: Number of MongoDB replicas for HA
+    # - sharding: Shard count, replica config servers
+    # - security: SSL/TLS usage, encryption for data at rest
+    # - monitoring: Prometheus setup, alert thresholds
+    ############################################################################
+    enabled: true
+    image:
+      repository: "mongodb"
+      tag: "6.0"
+      pullPolicy: "IfNotPresent"
+    replicas: 3
+    sharding:
+      enabled: true
+      shards: 3
+      configServers: 3
+    security:
+      ssl:
+        enabled: true
+        mode: "requireSSL"
+        certRotationDays: 90
+      encryption:
+        dataAtRest: true
+        algorithm: "AES-256-GCM"
+    monitoring:
+      prometheus:
+        enabled: true
+        scrapeInterval: "30s"
+      alerts:
+        diskSpace: "85%"
+        connections: "80%"
+        replicationLag: "30s"
+
+redis:
+  config:
+    ############################################################################
+    # Redis Helm Chart Configuration
+    # --------------------------------------------------------------------------
+    # - enabled: Whether to deploy Redis
+    # - cluster: Cluster mode, node count, replicas
+    # - security: TLS enablement, rotation days, data encryption
+    # - monitoring: Prometheus intervals and alert thresholds (memory, latency)
+    ############################################################################
+    enabled: true
+    cluster:
+      enabled: true
+      nodes: 6
+      replicas: 1
+    security:
+      tls:
+        enabled: true
+        certRotationDays: 90
+      encryption:
+        dataAtRest: true
+        algorithm: "AES-256-GCM"
+    monitoring:
+      prometheus:
+        enabled: true
+        scrapeInterval: "30s"
+      alerts:
+        memory: "85%"
+        connections: "80%"
+        latency: "100ms"
+
+elasticsearch:
+  config:
+    ############################################################################
+    # Elasticsearch Helm Chart Configuration
+    # --------------------------------------------------------------------------
+    # - enabled: Whether to deploy Elasticsearch
+    # - cluster: Basic cluster name and node roles
+    # - security: SSL certificates, encryption at rest
+    # - monitoring: Prometheus scraping and alerting parameters
+    ############################################################################
+    enabled: true
+    cluster:
+      name: "taskstream-es"
+      nodes:
+        data: 3
+        master: 3
+        ingest: 2
+    security:
+      ssl:
+        enabled: true
+        certRotationDays: 90
+      encryption:
+        dataAtRest: true
+        algorithm: "AES-256-GCM"
+    monitoring:
+      prometheus:
+        enabled: true
+        scrapeInterval: "30s"
+      alerts:
+        diskSpace: "85%"
+        jvmHeap: "75%"
+        cpuUsage: "80%"
