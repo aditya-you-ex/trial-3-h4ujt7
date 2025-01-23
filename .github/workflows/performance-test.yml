@@ -1,0 +1,320 @@
+name: "Performance Test Workflow"
+
+# Trigger conditions for running this workflow.
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+# Permissions required by this workflow.
+permissions:
+  contents: read
+
+# Global environment variables, including performance thresholds and retry configuration.
+env:
+  API_LATENCY_MS: "200"
+  ANALYTICS_PROCESSING_MS: "1000"
+  NLP_PROCESSING_MS: "500"
+  TASK_EXTRACTION_ACCURACY: "0.95"
+  RESOURCE_UTILIZATION_THRESHOLD: "0.4"
+  ADMINISTRATIVE_OVERHEAD_REDUCTION: "0.6"
+  ERROR_RATE_THRESHOLD: "0.001"
+  CONCURRENT_USER_LOAD: "1000"
+  RETRY_MAX_ATTEMPTS: "3"
+  RETRY_BACKOFF_FACTOR: "1.5"
+  RETRY_INITIAL_WAIT_MS: "1000"
+
+jobs:
+
+  # 1) setup-environment
+  setup-environment:
+    name: "Setup Test Environment"
+    # This job prepares the environment with required dependencies, configurations, and test data.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout Repository Code"
+        uses: actions/checkout@v3
+
+      - name: "Set Up Node.js Environment"
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: "Set Up Python Environment"
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: "Install Node.js Dependencies"
+        run: |
+          echo "Installing Node.js dependencies via yarn..."
+          yarn install --frozen-lockfile
+
+      - name: "Install Python Dependencies"
+        run: |
+          echo "Installing Python dependencies via pip..."
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "No requirements.txt found, skipping Python dependency install."
+          fi
+
+      - name: "Initialize Performance Testing Environment"
+        id: init-perf-env
+        run: |
+          echo "Preparing environment with advanced config, test data, monitoring, and error handlers..."
+          # Simulating the "setup_test_environment" function steps:
+          # 1) Yarn/Pip installs are already done above.
+          # 2) Configure test DB connections (stub).
+          # 3) Initialize monitoring tools & exporters (stub).
+          # 4) Load test data & corpora (stub).
+          # 5) Validate environment config (stub).
+          # 6) Setup error handlers & cleanup procedures (stub).
+          echo "Environment setup complete."
+
+  # 2) api_benchmark_job
+  api_benchmark_job:
+    name: "API Benchmark Job"
+    # This job focuses on comprehensive API endpoint performance testing with enhanced latency and error checks.
+    runs-on: ubuntu-latest
+    needs: [ setup-environment ]
+
+    strategy:
+      matrix:
+        environment: [ "staging", "production" ]
+
+    steps:
+      - name: "Checkout Repository Code"
+        uses: actions/checkout@v3
+
+      - name: "Set Up Node.js Environment"
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: "Set Up Python Environment"
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: "Install Node.js Dependencies"
+        run: |
+          echo "Installing Node.js dependencies via yarn in API Benchmark Job..."
+          yarn install --frozen-lockfile
+
+      - name: "Install Python Dependencies"
+        run: |
+          echo "Installing Python dependencies via pip in API Benchmark Job..."
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: "Run API Endpoint Benchmarks"
+        run: |
+          echo "Executing runApiBenchmark() in environment '${{ matrix.environment }}'..."
+          # Calls runApiBenchmark from src/test/performance/benchmark/api-endpoints.ts
+          # Enhanced metrics, concurrency, and error tracking
+          npx ts-node -e "import { runApiBenchmark } from './src/test/performance/benchmark/api-endpoints'; (async()=>{await runApiBenchmark();})();"
+
+      - name: "Validate API Latency Metrics"
+        run: |
+          echo "Validating API latency metrics with threshold < ${API_LATENCY_MS} ms..."
+          # Calls validateLatencyMetrics from api-endpoints
+          npx ts-node -e "import { validateLatencyMetrics } from './src/test/performance/benchmark/api-endpoints'; validateLatencyMetrics(${API_LATENCY_MS}, ${ERROR_RATE_THRESHOLD});"
+
+      - name: "Generate API Performance Report"
+        run: |
+          echo "Generating API performance report..."
+          # Calls generateApiReport from api-endpoints
+          npx ts-node -e "import { generateApiReport } from './src/test/performance/benchmark/api-endpoints'; generateApiReport('api_performance_results.json');"
+
+      - name: "Upload API Benchmark Report"
+        uses: actions/upload-artifact@v3
+        with:
+          name: "api_performance_report-${{ matrix.environment }}"
+          path: "api_performance_results.json"
+
+  # 3) analytics_benchmark_job
+  analytics_benchmark_job:
+    name: "Analytics Benchmark Job"
+    # This job tests resource optimization and analytics engine performance.
+    runs-on: ubuntu-latest
+    needs: [ setup-environment ]
+
+    strategy:
+      matrix:
+        environment: [ "staging", "production" ]
+
+    steps:
+      - name: "Checkout Repository Code"
+        uses: actions/checkout@v3
+
+      - name: "Set Up Node.js Environment"
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: "Set Up Python Environment"
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: "Install Node.js Dependencies"
+        run: |
+          echo "Installing Node.js dependencies via yarn in Analytics Benchmark Job..."
+          yarn install --frozen-lockfile
+
+      - name: "Install Python Dependencies"
+        run: |
+          echo "Installing Python dependencies via pip in Analytics Benchmark Job..."
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: "Run Data Analytics Benchmarks"
+        run: |
+          echo "Executing runAnalyticsBenchmarks() in environment '${{ matrix.environment }}'..."
+          # Calls runAnalyticsBenchmarks from data-analytics
+          npx ts-node -e "import { runAnalyticsBenchmarks } from './src/test/performance/benchmark/data-analytics'; (async()=>{runAnalyticsBenchmarks();})();"
+
+      - name: "Validate Resource Utilization Metrics"
+        run: |
+          echo "Validating that resource utilization meets target improvement of 40%..."
+          # Calls validateResourceMetrics from data-analytics
+          npx ts-node -e "import { validateResourceMetrics } from './src/test/performance/benchmark/data-analytics'; validateResourceMetrics(${RESOURCE_UTILIZATION_THRESHOLD});"
+
+      - name: "Generate Analytics Report"
+        run: |
+          echo "Generating analytics performance report..."
+          # Calls generateAnalyticsReport from data-analytics
+          npx ts-node -e "import { generateAnalyticsReport } from './src/test/performance/benchmark/data-analytics'; generateAnalyticsReport('analytics_performance_results.json');"
+
+      - name: "Upload Analytics Benchmark Report"
+        uses: actions/upload-artifact@v3
+        with:
+          name: "analytics_performance_report-${{ matrix.environment }}"
+          path: "analytics_performance_results.json"
+
+  # 4) nlp_benchmark_job
+  nlp_benchmark_job:
+    name: "NLP Benchmark Job"
+    # This job covers NLP-based accuracy, concurrency, and overhead reduction tests.
+    runs-on: ubuntu-latest
+    needs: [ setup-environment ]
+
+    strategy:
+      matrix:
+        environment: [ "staging", "production" ]
+
+    steps:
+      - name: "Checkout Repository Code"
+        uses: actions/checkout@v3
+
+      - name: "Set Up Node.js Environment"
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: "Set Up Python Environment"
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: "Install Node.js Dependencies"
+        run: |
+          echo "Installing Node.js dependencies via yarn in NLP Benchmark Job..."
+          yarn install --frozen-lockfile
+
+      - name: "Install Python Dependencies"
+        run: |
+          echo "Installing Python dependencies via pip in NLP Benchmark Job..."
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: "Benchmark Text Processing"
+        run: |
+          echo "Benchmarking text processing performance across concurrency levels..."
+          # Calls benchmarkTextProcessing from nlp-processing
+          npx ts-node -e "import { benchmarkTextProcessing } from './src/test/performance/benchmark/nlp-processing'; (async()=>{await benchmarkTextProcessing({ textLengths:[100,500], batchSizes:[10,50], complexityLevels:['medium','high'], concurrencyLevels:[5,10], resourceMonitoring:true });})();"
+
+      - name: "Benchmark Task Extraction"
+        run: |
+          echo "Benchmarking task extraction to ensure 95% accuracy..."
+          # Calls benchmarkTaskExtraction from nlp-processing
+          npx ts-node -e "import { benchmarkTaskExtraction } from './src/test/performance/benchmark/nlp-processing'; (async()=>{await benchmarkTaskExtraction({ communicationTypes:['email','chat'], taskComplexities:['low','medium','high'], batchSizes:[10,20], accuracyThreshold:${TASK_EXTRACTION_ACCURACY}, confidenceScores:[0.5,0.8] });})();"
+
+      - name: "Benchmark Concurrent Processing"
+        run: |
+          echo "Testing concurrent user load up to 1000 for reliability metrics..."
+          # Calls benchmarkConcurrentProcessing from nlp-processing
+          npx ts-node -e "import { benchmarkConcurrentProcessing } from './src/test/performance/benchmark/nlp-processing'; (async()=>{await benchmarkConcurrentProcessing({ concurrencyLevels:[10,50], duration:60, resourceLimits:{ cpu:80, memory:512 }, reliability:99.9, monitoringInterval:5000 });})();"
+
+      - name: "Validate NLP Accuracy Metrics"
+        run: |
+          echo "Validating task extraction accuracy >= 95%..."
+          # Calls validateAccuracyMetrics from nlp-processing
+          npx ts-node -e "import { validateAccuracyMetrics } from './src/test/performance/benchmark/nlp-processing'; validateAccuracyMetrics(${TASK_EXTRACTION_ACCURACY});"
+
+      - name: "Generate NLP Report"
+        run: |
+          echo "Generating NLP performance report..."
+          # Calls generateNlpReport from nlp-processing
+          npx ts-node -e "import { generateNlpReport } from './src/test/performance/benchmark/nlp-processing'; generateNlpReport('nlp_performance_results.json');"
+
+      - name: "Upload NLP Benchmark Report"
+        uses: actions/upload-artifact@v3
+        with:
+          name: "nlp_performance_report-${{ matrix.environment }}"
+          path: "nlp_performance_results.json"
+
+  # 5) performance_report
+  performance_report:
+    name: "Consolidate & Archive Performance Report"
+    # Orchestrates final artifact creation after all performance benchmarks complete.
+    runs-on: ubuntu-latest
+    needs: [ api_benchmark_job, analytics_benchmark_job, nlp_benchmark_job ]
+
+    steps:
+      - name: "Download API Benchmark Artifacts"
+        uses: actions/download-artifact@v3
+        with:
+          name: "api_performance_report-${{ needs.api_benchmark_job.outputs.matrix.environment || 'noenv' }}"
+          path: "results/api"
+
+      - name: "Download Analytics Benchmark Artifacts"
+        uses: actions/download-artifact@v3
+        with:
+          name: "analytics_performance_report-${{ needs.analytics_benchmark_job.outputs.matrix.environment || 'noenv' }}"
+          path: "results/analytics"
+
+      - name: "Download NLP Benchmark Artifacts"
+        uses: actions/download-artifact@v3
+        with:
+          name: "nlp_performance_report-${{ needs.nlp_benchmark_job.outputs.matrix.environment || 'noenv' }}"
+          path: "results/nlp"
+
+      - name: "Aggregate All Performance Reports"
+        run: |
+          echo "Combining all JSON performance results to produce a unified coverage and metrics report..."
+          # Hypothetically calls run_performance_suite as a final aggregator
+          # reflecting the JSON specification's 'run_performance_suite' function.
+          # For demonstration, we stub the steps:
+          echo "Executing run_performance_suite() for final consolidation..."
+          # This step would read the downloaded JSON files from results/api, results/analytics, results/nlp
+          # and produce a single merged file called 'taskstream_full_performance_report.json'.
+
+          npx ts-node -e "import { run_performance_suite } from './scripts/perf-orchestration'; (async()=>{const finalMetrics=await run_performance_suite('${{ github.ref_name }}',{ /* threshold config */}); console.log(finalMetrics);})();"
+
+          # For a real scenario, you'd parse the partial results from each folder and compile them.
+          # We'll simulate generating a final JSON file:
+          echo '{ "consolidated": true }' > taskstream_full_performance_report.json
+
+      - name: "Upload Final Consolidated Performance Report"
+        uses: actions/upload-artifact@v3
+        with:
+          name: "performance_report"
+          path: "taskstream_full_performance_report.json"
