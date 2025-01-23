@@ -1,0 +1,229 @@
+####################################################################################################
+# SECURITY CONFIGURATION FOR TASKSTREAM AI (OPENAPI 3.0+)
+# --------------------------------------------------------------------------------------------------
+# File: security.yaml
+# Location: src/backend/api/openapi/security.yaml
+#
+# This file defines the OpenAPI security schemes and boilerplate security requirements
+# for the TaskStream AI platform, integrating JWT (with bearer token), OAuth2 (auth code flow),
+# and an API key authentication mechanism. Additionally, it includes an extended function to
+# dynamically generate security requirements based on custom scopes.
+#
+# Technical Requirements Implemented:
+# --------------------------------------------------------------------------------------------------
+# 1) API Security (Technical Specifications/3.3.1 API Architecture) - Uses JWT w/ OAuth2 and rate limiting
+# 2) Authentication & Authorization (Technical Specifications/7.1) - Defines security schemes for JWT/OAuth2
+# 3) Security Architecture (Technical Specifications/2.4.2) - Employs enterprise-grade definitions with WAF,
+#    API Gateway, Identity Provider, and the relevant components for each type of authentication.
+#
+# Imports:
+# --------------------------------------------------------------------------------------------------
+# - Internal Import (with usage):
+#     name: AUTH_CONFIG  [Renamed or conceptually referencing 'SECURITY_CONFIG' in src/backend/config/security.ts]
+#     member(s) used: jwt
+#     purpose: Security configuration (e.g., JWT secret, lifetime, rates) to ensure alignment with codebase
+# - External Import (with version):
+#     name: openapi
+#     package_name: openapi-types
+#     package_version: ^12.1.0
+#     purpose: Provides standard OpenAPI 3.x type definitions
+#
+# Notes on Implementation:
+# --------------------------------------------------------------------------------------------------
+# - The "securitySchemes" object houses definitions for:
+#     1) bearerAuth (HTTP Bearer JWT)
+#     2) oauth2Auth (Authorization Code Flow)
+#     3) apiKeyAuth (API Key in Header)
+# - The "securityRequirements" array shows a default set of usage with bearerAuth and oauth2Auth.
+# - The function "generateSecurityRequirements" is included under x-functions to demonstrate how the
+#   platform can dynamically build or merge security requirements based on endpoint scopes.
+# - Rate limiting references: Key details like "1000 requests per minute" are also captured.
+####################################################################################################
+
+openapi: "3.0.3"
+info:
+  title: "TaskStream AI Security Definitions"
+  version: "1.0.0"
+
+################################################################################
+# COMPONENTS: SECURITY SCHEMES
+# ------------------------------------------------------------------------------
+# The following security schemes are part of the OpenAPI spec. They can be
+# applied at the root (global) or operation level. Each scheme references
+# an underlying authentication mechanism in the system:
+#   - 'bearerAuth' uses JWT in the Authorization header
+#   - 'oauth2Auth' uses OAuth 2.0 with an authorization code flow
+#   - 'apiKeyAuth' uses a key in the X-API-Key header
+################################################################################
+components:
+  securitySchemes:
+
+    ###########################################################################
+    # BEARER AUTH (JWT)
+    # -------------------------------------------------------------------------
+    # This scheme implements HTTP Bearer authentication with JWT tokens. It
+    # references the 'jwt' sub-config from our internal SECURITY_CONFIG for
+    # secret, expiry, issuer, etc. The rate limiting is 1000 requests/min by
+    # default, as referenced in the Technical Specs (API Security).
+    ###########################################################################
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        JSON Web Token (JWT) based authentication with a global rate limit
+        of 1000 requests per minute. The token is provided in the Authorization
+        header using "Bearer <token>". Internally references AUTH_CONFIG.jwt
+        from ../../config/security.
+
+    ###########################################################################
+    # OAUTH2 AUTH (AUTHORIZATION CODE FLOW)
+    # -------------------------------------------------------------------------
+    # Security scheme for OAuth 2.0. This leverages external identity providers
+    # or an internal identity service. The "authorizationCode" flow includes
+    # endpoints for authorization, token exchange, and refresh. Scopes are
+    # enumerated to clarify resource-level permissions in the platform.
+    ###########################################################################
+    oauth2Auth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: "https://auth.taskstream.com/oauth/authorize"
+          tokenUrl: "https://auth.taskstream.com/oauth/token"
+          refreshUrl: "https://auth.taskstream.com/oauth/refresh"
+          scopes:
+            read:tasks: "Read task data and metadata"
+            write:tasks: "Create, modify, and delete tasks"
+            read:projects: "Access project information and settings"
+            write:projects: "Create and manage project configurations"
+            read:analytics: "Access analytics data and reports"
+            admin: "Full administrative access to all system features"
+
+    ###########################################################################
+    # API KEY AUTH
+    # -------------------------------------------------------------------------
+    # This scheme is typically used for secure service-to-service communication
+    # or integrations. The key is placed in the "X-API-Key" header. For
+    # best practice, keys are revoked/rotated periodically, and the service
+    # is subject to the same 1000 requests/min rate limit.
+    ###########################################################################
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: "X-API-Key"
+      description: >
+        API key authentication with a default rate limit of 1000 requests per
+        minute. The key is provided in the X-API-Key header. Used primarily for
+        internal microservice communications or external service integration.
+
+################################################################################
+# EXTENSIONS FOR CUSTOM FUNCTIONALITY
+# ------------------------------------------------------------------------------
+# This section includes specialized metadata and a function for generating
+# security requirements dynamically. Because YAML does not natively support
+# custom code, we embed the function logic in a string block using a vendor
+# extension. A TypeScript snippet is provided, referencing openapi-types ^12.1.0.
+################################################################################
+x-functions:
+  ###########################################################################
+  # generateSecurityRequirements
+  # -------------------------------------------------------------------------
+  # Generates security requirement objects for API endpoints based on
+  # required scopes. This balances JWT, OAuth2, and API Key approaches,
+  # and can optionally incorporate rate limiting or other constraints.
+  #
+  # Steps:
+  # 1) Define JWT bearer due to mandatory token usage
+  # 2) Include OAuth2 with provided scopes if relevant
+  # 3) Include API key scheme if endpoint requires service-based authentication
+  # 4) Merge & validate final requirement object
+  # 5) Return the array of security requirement objects
+  #
+  # Usage:
+  #   generateSecurityRequirements(['write:tasks', 'read:analytics'])
+  #
+  ###########################################################################
+  generateSecurityRequirements: |
+    // Using openapi-types ^12.1.0 for SecurityRequirementObject definitions
+    import type {
+      SecurityRequirementObject
+    } from 'openapi-types'
+    
+    // Hypothetical reference to internal config for JWT-based rates
+    // import { jwt } from '../../config/security' // commented out placeholder
+
+    /**
+     * Generates an array of security requirements suitable for controlling
+     * route access. Each item in the returned array is an OpenAPI
+     * SecurityRequirementObject.
+     *
+     * @param scopes An array of OAuth2 scopes required by the endpoint.
+     * @returns SecurityRequirementObject[] representing all needed security checks.
+     */
+    export function generateSecurityRequirements(scopes: string[]): SecurityRequirementObject[] {
+      // Create a list of security objects that can be OR'ed by the client
+      // (the request must satisfy at least one).
+      const requirements: SecurityRequirementObject[] = []
+      
+      // 1) Always define a JWT requirement with an empty array of scopes
+      //    corresponding to the Bearer token usage under 'bearerAuth'.
+      requirements.push({ bearerAuth: [] })
+
+      // 2) If any OAuth2 scopes are provided, push an OAuth2 requirement:
+      //    The OpenAPI spec defines them as an array of strings (the scopes).
+      if (scopes && scopes.length > 0) {
+        requirements.push({ oauth2Auth: scopes })
+      } else {
+        // If no scopes are specified but OAuth is mandatory for the endpoint, we can
+        // push an empty array of scopes or skip altogether. Here we push empty by default.
+        requirements.push({ oauth2Auth: [] })
+      }
+
+      // 3) For endpoints requiring service-to-service calls, we can also
+      //    include an API key requirement. If not needed, we can omit it
+      //    or conditionally add it. For this sample, we include it by default.
+      requirements.push({ apiKeyAuth: [] })
+
+      // 4) Rate-limiting references can be annotated or enforced in the
+      //    gateway layer. We can define meta info in x-rate-limit if needed.
+      //    e.g., x-rate-limit: 1000 requests/min, but not part of the standard
+      //    SecurityRequirementObject.
+
+      // 5) Return the fully constructed list of possible security requirements.
+      return requirements
+    }
+
+################################################################################
+# EXPORTS
+# ------------------------------------------------------------------------------
+# As requested, we expose the securitySchemes and default securityRequirements
+# via vendor extensions. This aligns with the build-time consumption or any
+# code generators that rely on these definitions for reference.
+################################################################################
+x-exports:
+  ###########################################################################
+  # securitySchemes
+  # -------------------------------------------------------------------------
+  # Explicitly exported object containing the named sub-schemes:
+  # - bearerAuth
+  # - oauth2Auth
+  # - apiKeyAuth
+  ###########################################################################
+  securitySchemes:
+    bearerAuth:
+      $ref: "#/components/securitySchemes/bearerAuth"
+    oauth2Auth:
+      $ref: "#/components/securitySchemes/oauth2Auth"
+    apiKeyAuth:
+      $ref: "#/components/securitySchemes/apiKeyAuth"
+
+  ###########################################################################
+  # securityRequirements
+  # -------------------------------------------------------------------------
+  # Basic default usage of JWT (bearerAuth) and OAuth2 (oauth2Auth). If
+  # an endpoint only uses one or the other, it can override or narrow
+  # these requirements. For standard resources, both are recognized.
+  ###########################################################################
+  securityRequirements:
+    - bearerAuth: []
+    - oauth2Auth: []
