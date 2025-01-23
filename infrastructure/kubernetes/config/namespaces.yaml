@@ -1,0 +1,177 @@
+# =============================================================================
+# NAMESPACES FOR THE TASKSTREAM AI PLATFORM
+# -----------------------------------------------------------------------------
+# This file defines Kubernetes Namespace resources (apiVersion: v1) to provide
+# isolated environments for the core TaskStream AI components. Each Namespace
+# enforces resource isolation, access control, organizational separation of
+# concerns, and adherence to SOC 2 compliance requirements.
+#
+# EXTERNAL IMPORT REFERENCE:
+#   - kubernetes (v1.27+)   # For Namespace resource compatibility
+#
+# INTERNAL IMPORT REFERENCES:
+#   - rbac.yaml: (analytics-role, nlp-role, monitoring-cluster-role)
+#   - service-accounts.yaml: (analytics-service-account, nlp-service-account, monitoring-service-account)
+#
+# GLOBAL LABELS & ANNOTATIONS (from JSON specification):
+#   - environment: "production"
+#   - managed-by: "taskstream"
+#   - version: "v1"
+#   - security-tier: "high"
+#   - compliance: "soc2"
+#
+# The JSON specification also mandates that each Namespace includes use-case-
+# specific labels/annotations to support data classification, backup retention,
+# network policy, resource quotas, monitoring enablement, and role references.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1) ANALYTICS NAMESPACE
+# -----------------------------------------------------------------------------
+# Purpose: A dedicated namespace for analytics services, featuring enhanced
+# security, monitoring integration, and references to analytics-specific RBAC
+# and service accounts. This namespace enforces restricted network policies,
+# high resource quotas, and SOC 2 compliance annotations.
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: analytics
+  labels:
+    name: analytics
+    environment: production
+    managed-by: taskstream
+    version: v1
+    security-tier: high
+    compliance: soc2
+    data-classification: sensitive
+  annotations:
+    description: "Analytics services namespace"
+    owner: "analytics-team"
+    security.taskstream.io/compliance: "soc2"
+    monitoring.taskstream.io/enabled: "true"
+    network.taskstream.io/policy: "restricted"
+    backup.taskstream.io/retention: "30d"
+    resource-quota.taskstream.io/cpu: "high"
+    resource-quota.taskstream.io/memory: "high"
+    rbac.taskstream.io/applied-role: "analytics-role"
+    rbac.taskstream.io/service-account: "analytics-service-account"
+---
+# -----------------------------------------------------------------------------
+# 2) NLP NAMESPACE
+# -----------------------------------------------------------------------------
+# Purpose: A dedicated namespace for NLP processing services, leveraging GPU
+# resources. This namespace integrates specialized security annotations, GPU
+# quotas, and references to the NLP RBAC role and service account. Monitoring
+# and SOC 2 compliance settings are also enabled.
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nlp
+  labels:
+    name: nlp
+    environment: production
+    managed-by: taskstream
+    version: v1
+    security-tier: high
+    compliance: soc2
+    data-classification: sensitive
+  annotations:
+    description: "NLP processing services namespace"
+    owner: "nlp-team"
+    security.taskstream.io/compliance: "soc2"
+    monitoring.taskstream.io/enabled: "true"
+    ml.taskstream.io/gpu-enabled: "true"
+    network.taskstream.io/policy: "restricted"
+    backup.taskstream.io/retention: "30d"
+    resource-quota.taskstream.io/gpu: "enabled"
+    rbac.taskstream.io/applied-role: "nlp-role"
+    rbac.taskstream.io/service-account: "nlp-service-account"
+---
+# -----------------------------------------------------------------------------
+# 3) TASKS NAMESPACE
+# -----------------------------------------------------------------------------
+# Purpose: A dedicated namespace for Task Management services, ensuring data
+# isolation and security for tasks, schedules, and project-related activities.
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tasks
+  labels:
+    name: tasks
+    environment: production
+    managed-by: taskstream
+    version: v1
+    security-tier: high
+    compliance: soc2
+    data-classification: sensitive
+  annotations:
+    description: "Namespace for task management services with data isolation"
+    owner: "tasks-team"
+    monitoring.taskstream.io/enabled: "true"
+    network.taskstream.io/policy: "restricted"
+    backup.taskstream.io/retention: "30d"
+    resource-quota.taskstream.io/cpu: "high"
+    resource-quota.taskstream.io/memory: "high"
+---
+# -----------------------------------------------------------------------------
+# 4) MONITORING NAMESPACE
+# -----------------------------------------------------------------------------
+# Purpose: A dedicated namespace for monitoring tools that require elevated
+# privileges. References the monitoring-cluster-role and service account from
+# rbac.yaml and service-accounts.yaml. Enforces network isolation, backups,
+# and SOC 2 compliance.
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+    environment: production
+    managed-by: taskstream
+    version: v1
+    security-tier: high
+    compliance: soc2
+    data-classification: internal
+  annotations:
+    description: "Namespace for monitoring tools with elevated privileges"
+    owner: "monitoring-team"
+    monitoring.taskstream.io/enabled: "true"
+    network.taskstream.io/policy: "restricted"
+    backup.taskstream.io/retention: "30d"
+    resource-quota.taskstream.io/cpu: "high"
+    resource-quota.taskstream.io/memory: "high"
+    rbac.taskstream.io/applied-cluster-role: "monitoring-cluster-role"
+    rbac.taskstream.io/service-account: "monitoring-service-account"
+---
+# -----------------------------------------------------------------------------
+# 5) INTEGRATION NAMESPACE
+# -----------------------------------------------------------------------------
+# Purpose: A dedicated namespace for managing external integrations, ensuring
+# specialized security controls and compliance with multi-region and network
+# policies. This namespace can facilitate connections to external PDUs or
+# third-party APIs while maintaining internal safety.
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: integration
+  labels:
+    name: integration
+    environment: production
+    managed-by: taskstream
+    version: v1
+    security-tier: high
+    compliance: soc2
+    data-classification: internal
+  annotations:
+    description: "Namespace for integration services with external connectivity controls"
+    owner: "integration-team"
+    monitoring.taskstream.io/enabled: "true"
+    network.taskstream.io/policy: "restricted"
+    backup.taskstream.io/retention: "30d"
+    resource-quota.taskstream.io/cpu: "medium"
+    resource-quota.taskstream.io/memory: "medium"
