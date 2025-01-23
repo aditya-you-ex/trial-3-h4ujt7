@@ -1,0 +1,329 @@
+/* =============================================================================
+   TaskStream AI - Components.css
+   Defines core component styles for the TaskStream AI design system, implementing
+   reusable UI patterns, consistent styling across shared components, responsive
+   design breakpoints, and accessibility best practices.
+
+   Dependencies / Imports:
+   - variables.css (CSS Custom Properties)
+   - theme.css (Theme Variables)
+============================================================================= */
+@import './variables.css'; /* Named Import: CSS Custom Properties */
+@import './theme.css';     /* Named Import: Theme Variables */
+
+/* =============================================================================
+   GLOBAL MEDIA QUERIES
+   Incorporates print-specific and reduced-motion-specific styles as needed.
+============================================================================= */
+@media print {
+  /* Print-specific styles for all components:
+     - Minimizes shadows, decorative elements, and improves print legibility. */
+  .card,
+  .modal {
+    box-shadow: none !important;
+    border: 1px solid var(--color-gray-300) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Reduced motion styles for users who prefer less movement, disabling or
+     limiting transitions, animations, and hover effects. */
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* =============================================================================
+   RESPONSIVE BREAKPOINTS
+   Using design system breakpoints for mobile, tablet, desktop, and wide screens.
+   - Mobile: 320px
+   - Tablet: 768px
+   - Desktop: 1024px
+   - Wide: 1440px
+============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   Button Component (.button)
+   - Enhanced button base styles supporting various states and variants.
+   - Maintains responsiveness using design tokens for spacing, font size, etc.
+----------------------------------------------------------------------------- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-family: var(--font-family-primary);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-md);
+  text-decoration: none;
+  text-align: center;
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  transition: background-color var(--transition-default),
+              box-shadow var(--transition-default),
+              opacity var(--transition-default);
+  cursor: pointer;
+  position: relative;
+  line-height: 1.2;
+}
+
+.button:hover {
+  /* Hover state with subtle color shift for better feedback */
+  background-color: var(--color-primary-dark);
+}
+
+.button:focus {
+  /* Focus state to ensure accessibility (focus ring for keyboard users) */
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.4);
+}
+
+.button:disabled,
+.button[disabled] {
+  /* Disabled state with reduced opacity and no pointer events */
+  background-color: var(--color-gray-300);
+  color: var(--color-gray-500);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* -----------------------------------------------------------------------------
+   Button Variants (.button--variants)
+   - Provides additional size, outline, loading, or style modifiers
+   - Powered by design tokens (spacing, color) for consistency
+----------------------------------------------------------------------------- */
+.button--small {
+  /* Smaller variant for compact UIs */
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+}
+
+.button--large {
+  /* Larger variant for more prominent CTA usage */
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: var(--font-size-lg);
+}
+
+.button--outlined {
+  /* Outlined variant with transparent background and solid border */
+  background-color: transparent;
+  border: 1px solid currentColor;
+  color: var(--color-primary);
+}
+
+.button--outlined:hover {
+  background-color: var(--color-primary-light);
+  color: var(--color-white);
+}
+
+.button--loading {
+  /* Loading variant with reduced interaction */
+  opacity: 0.7;
+  pointer-events: none;
+  position: relative;
+}
+
+.button--loading::after {
+  /* May use an animation or spinner here if desired */
+  content: '';
+  position: absolute;
+  right: var(--spacing-sm);
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-white);
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin var(--transition-default) linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Input Component (.input)
+   - Enhanced input field with validation states and fluid width.
+   - Includes transitions, focus states, and responsive font sizing.
+----------------------------------------------------------------------------- */
+.input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-md);
+  font-family: var(--font-family-primary);
+  color: var(--color-gray-900);
+  transition: border-color var(--transition-default),
+              box-shadow var(--transition-default);
+  position: relative;
+  background-color: var(--color-white);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.input:disabled,
+.input[disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background-color: var(--color-gray-100);
+}
+
+.input--error {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+}
+
+/* -----------------------------------------------------------------------------
+   Card Component (.card)
+   - Elevated container for grouping content with optional shadow tiers.
+   - Uses base spacing, box-shadow, and background color tokens.
+----------------------------------------------------------------------------- */
+.card {
+  background: var(--color-white);
+  color: var(--color-gray-900);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-lg);
+  transition: box-shadow var(--transition-default),
+              transform var(--transition-default);
+}
+
+.card:hover {
+  /* Slight elevation or highlight on hover for interactive contexts */
+  box-shadow: var(--shadow-lg);
+}
+
+.card--elevated {
+  /* Optional higher elevation variant */
+  box-shadow: var(--shadow-xl);
+}
+
+@media (max-width: var(--breakpoint-tablet)) {
+  .card {
+    /* Responsive spacing adjustments for smaller screens */
+    padding: var(--spacing-md);
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Modal Component (.modal)
+   - Enhanced modal dialog with fixed positioning, layering, and basic animation.
+   - Inherits z-index from design tokens to overlay content properly.
+----------------------------------------------------------------------------- */
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-index-modal);
+  background: var(--color-white);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-xl);
+  width: 90%;
+  max-width: 600px;
+  padding: var(--spacing-lg);
+  animation: modal-enter var(--transition-default);
+}
+
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.modal-header {
+  /* Example for structured layout in the modal content */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-md);
+}
+
+.modal--wide {
+  max-width: 900px;
+}
+
+@media (max-width: var(--breakpoint-mobile)) {
+  .modal {
+    max-width: 95%;
+    padding: var(--spacing-md);
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Table Component (.table)
+   - Enhanced table with full width, border-collapse, and responsive variants.
+   - Includes consistent text size and minimal borders for clarity.
+----------------------------------------------------------------------------- */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--color-gray-200);
+  margin-bottom: var(--spacing-lg);
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--color-gray-200);
+  padding: var(--spacing-sm);
+  text-align: left;
+  vertical-align: middle;
+  background-color: var(--color-white);
+  color: var(--color-gray-900);
+}
+
+.table th {
+  font-weight: var(--font-weight-medium);
+  background-color: var(--color-gray-100);
+}
+
+.table--responsive {
+  /* Basic responsive approach, wrapping or enabling horizontal scroll */
+  display: block;
+  overflow-x: auto;
+}
+
+@media (max-width: var(--breakpoint-tablet)) {
+  .table {
+    /* Slightly larger text on smaller screens, improving readability */
+    font-size: var(--font-size-md);
+  }
+}
+
+/* =============================================================================
+   EXPORTS
+   Named Exports for Enhanced Component Classes
+   (For organizational reference in the design system)
+   - .button
+   - .input
+   - .card
+   - .modal
+   - .table
+============================================================================= */
+
+/*
+.button
+.input
+.card
+.modal
+.table
+*/
+
+/* End of components.css */
